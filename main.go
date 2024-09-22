@@ -9,11 +9,10 @@ import (
 	models "github.com/shopeeProject/shopee/models"
 	"github.com/shopeeProject/shopee/storage"
 	util "github.com/shopeeProject/shopee/util"
+	"gorm.io/gorm"
 )
 
-func main() {
-	server := NewAPIServer(":3000") // runs on 3000
-
+func getStorageConfig() *gorm.DB {
 	err := godotenv.Load(".env")
 	if err != nil {
 		log.Fatal(err)
@@ -32,15 +31,38 @@ func main() {
 	if err != nil {
 		log.Fatal("could not load the database")
 	}
-	err = models.MigrateUser(db)
+	return db
+}
+
+func getUserDB() *gorm.DB {
+
+	db := getStorageConfig()
+	err := models.MigrateUser(db)
 	if err != nil {
 		log.Fatal("could not migrate db")
 	}
+	return db
 
-	r := util.Repository{
-		DB: db,
+}
+
+func getSellerDB() *gorm.DB {
+
+	db := getStorageConfig()
+	err := models.MigrateSeller(db)
+	if err != nil {
+		log.Fatal("could not migrate db")
 	}
-	server.Run(&r)
+	return db
+
+}
+
+func main() {
+	server := NewAPIServer(":3000") // runs on 3000
+	shopeeDB := util.ShopeeDatabase{
+		UserDB:   getUserDB(),
+		SellerDB: getSellerDB(),
+	}
+	server.Run(&shopeeDB)
 
 	// call run
 	fmt.Println("Hi Buddy!!, Server is running")

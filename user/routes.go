@@ -8,25 +8,31 @@ import (
 	util "github.com/shopeeProject/shopee/util"
 )
 
+var user User
+var users []User
+
 const (
 	updateUserDetails = "/update-user-details"
 	validateUser      = "/validate-user"
 	deleteFromDb      = "/delete-user-from-db"
 	getUser           = "/get-user-details"
+	createUser        = "/create-user"
+	userLogin         = "/user-login"
 )
 
-type user struct {
+type User struct {
 	Uid           int
 	Name          string `form:"name"`
 	PhoneNumber   string `form:"phoneNumber"`
 	EmailAddress  string `form:"emailAddress"`
 	AccountStatus string `form:"accountStatus"`
 	Address       string `form:"address"`
+	Password      string `form:"password"`
 }
 
 func updateUserDetailsHandler(r *util.Repository) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		var userdetails user
+		var userdetails User
 		c.Bind(&userdetails)
 
 		// fetch details of user from db and update details
@@ -39,7 +45,7 @@ func updateUserDetailsHandler(r *util.Repository) gin.HandlerFunc {
 
 func getUserHandler(r *util.Repository) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		userdetails := user{
+		userdetails := User{
 			Uid: 1,
 		}
 		userdetails.AccountStatus = "Down"
@@ -66,8 +72,9 @@ func AuthoriseUser(r *util.Repository) gin.HandlerFunc {
 		c.Next()
 	}
 }
-
 func GroupUserRoutes(router *gin.Engine, r *util.Repository) *gin.RouterGroup {
+	router.POST(createUser, UserSignUp(r))
+	router.POST(userLogin, UserLogin(r))
 	userGroup := router.Group("/user")
 	userGroup.Use(AuthoriseUser(r))
 	{
@@ -75,6 +82,7 @@ func GroupUserRoutes(router *gin.Engine, r *util.Repository) *gin.RouterGroup {
 		userGroup.POST(validateUser, updateUserDetailsHandler(r))
 		userGroup.POST(deleteFromDb, updateUserDetailsHandler(r))
 		userGroup.GET(getUser, getUserHandler(r))
+
 	}
 	return userGroup
 }

@@ -4,16 +4,17 @@ import (
 	"gorm.io/gorm"
 )
 
-type user struct {
-	UID    			uint    `gorm:"primary key;autoIncrement" json:"id"`
-	name   			*string
-	phoneNumber 	*string
-	emailAddress 	*string
-	accountStatus 	*string
-	address  		*string 
+type User struct {
+	UID           uint    `gorm:"primary key;autoIncrement" json:"id"`
+	Name          *string `json:"name"`
+	PhoneNumber   *string `json:"phoneNumber"`
+	EmailAddress  *string `gorm:"unique;required" json:"emailAddress"`
+	AccountStatus *string `json:"accountStatus"`
+	Address       *string `json:"address"`
+	Password      *string `json:"password"`
 }
 
 func MigrateUser(db *gorm.DB) error {
-	err := db.AutoMigrate(&user{})
+	err := db.AutoMigrate(&User{})
 	return err
 }

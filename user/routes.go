@@ -1,7 +1,6 @@
 package user
 
 import (
-	"encoding/json"
 	"fmt"
 
 	"github.com/gin-gonic/gin"
@@ -36,7 +35,17 @@ func updateUserDetailsHandler(r *util.Repository) gin.HandlerFunc {
 		c.Bind(&userdetails)
 
 		// fetch details of user from db and update details
+		currentUser := []User{}
+		condition := User{EmailAddress: userdetails.EmailAddress}
+		r.DB.Limit(1).Find(&currentUser, condition)
+		if len(currentUser) == 0 {
+			c.JSON(409, gin.H{
+				"message": "No Users found with given Email",
+			})
+			return
+		}
 
+		r.DB.Model(&User{}).Updates(userdetails)
 		c.JSON(200, gin.H{
 			"message": "Details Updated successfully",
 		})
@@ -45,20 +54,15 @@ func updateUserDetailsHandler(r *util.Repository) gin.HandlerFunc {
 
 func getUserHandler(r *util.Repository) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		userdetails := User{
-			Uid: 1,
-		}
-		userdetails.AccountStatus = "Down"
-		userdetails.Address = "hyd"
 		//fetch user details from db and return
-		userdetailsJS, err := json.Marshal(userdetails)
-		fmt.Println(string(userdetailsJS), err)
-		if err == nil {
-			c.JSON(200, gin.H{
-				"message": "details fetched",
-				"data":    userdetails,
-			})
+		usersList := []User{}
+		r.DB.Find(&usersList)
+		m := map[string]interface{}{
+			"message": "Details Fetched",
+			"data":    usersList,
 		}
+
+		c.JSON(200, m)
 	}
 
 }

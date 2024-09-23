@@ -3,6 +3,8 @@ package user
 import (
 	"fmt"
 
+	"golang.org/x/crypto/bcrypt"
+
 	"github.com/gin-gonic/gin"
 	"github.com/shopeeProject/shopee/models"
 	util "github.com/shopeeProject/shopee/util"
@@ -36,6 +38,15 @@ func UserSignUp(r *util.Repository) gin.HandlerFunc {
 		var userdetails = User{}
 		c.Bind(&userdetails)
 		fmt.Println(userdetails)
+		hashCost := 8
+		passwordHash, err := bcrypt.GenerateFromPassword([]byte(userdetails.Password), hashCost)
+		if err != nil {
+			c.JSON(200, gin.H{
+				"message": "Error while generating hash" + err.Error(),
+			})
+			return
+		}
+		userdetails.Password = string(passwordHash)
 
 		if ValidateEmail(r, userdetails.EmailAddress).isValid {
 			r.DB.Where(User{EmailAddress: userdetails.EmailAddress}).Attrs(userdetails).FirstOrCreate(&user)
@@ -58,10 +69,9 @@ func validateUserCredentials(r *util.Repository, userdetails User) validation {
 		u := User{EmailAddress: email}
 		UserModel := []models.User{}
 		err := r.DB.Where(u).Find(&UserModel).Error
-		fmt.Println(UserModel, len(UserModel), err, u)
 		if err == nil {
 			if len(UserModel) == 1 {
-				if *UserModel[0].Password == password {
+				if bcrypt.CompareHashAndPassword([]byte(*UserModel[0].Password), []byte(password)) == nil {
 					return validation{true, "Password verified successfully"}
 				}
 				return validation{false, "Invalid Password"}

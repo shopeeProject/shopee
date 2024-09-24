@@ -35,6 +35,7 @@ func ValidateEmail(r *util.Repository, email string) validation {
 
 func UserSignUp(r *util.Repository) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		// var user1 User1
 		var userdetails = User{}
 		c.Bind(&userdetails)
 		fmt.Println(userdetails)
@@ -49,7 +50,8 @@ func UserSignUp(r *util.Repository) gin.HandlerFunc {
 		userdetails.Password = string(passwordHash)
 
 		if ValidateEmail(r, userdetails.EmailAddress).isValid {
-			r.DB.Where(User{EmailAddress: userdetails.EmailAddress}).Attrs(userdetails).FirstOrCreate(&user)
+			// fmt.Println(r.DB.Create(models.User{EmailAddress: userdetails.EmailAddress}).Error)
+			r.DB.Where(User{EmailAddress: userdetails.EmailAddress}).FirstOrCreate(&userdetails)
 			c.JSON(200, gin.H{
 				"message": "User Created succefully",
 			})
@@ -71,7 +73,7 @@ func validateUserCredentials(r *util.Repository, userdetails User) validation {
 		err := r.DB.Where(u).Find(&UserModel).Error
 		if err == nil {
 			if len(UserModel) == 1 {
-				if bcrypt.CompareHashAndPassword([]byte(*UserModel[0].Password), []byte(password)) == nil {
+				if bcrypt.CompareHashAndPassword([]byte(UserModel[0].Password), []byte(password)) == nil {
 					return validation{true, "Password verified successfully"}
 				}
 				return validation{false, "Invalid Password"}

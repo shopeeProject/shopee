@@ -20,7 +20,7 @@ const (
 )
 
 type User struct {
-	Uid           int
+	UId           uint
 	Name          string `form:"name"`
 	PhoneNumber   string `form:"phoneNumber"`
 	EmailAddress  string `form:"emailAddress"`

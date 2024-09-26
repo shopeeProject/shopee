@@ -1,5 +1,7 @@
 package models
 
+import "gorm.io/gorm"
+
 type Product struct {
 }
 
@@ -13,3 +15,8 @@ Order
 
 
 */
+
+func MigrateProduct(db *gorm.DB) error {
+	err := db.AutoMigrate(&Product{})
+	return err
+}

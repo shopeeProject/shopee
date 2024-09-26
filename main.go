@@ -56,11 +56,58 @@ func getSellerDB() *gorm.DB {
 
 }
 
+func getCartDB() *gorm.DB {
+
+	db := getStorageConfig()
+	err := models.MigrateCart(db)
+	if err != nil {
+		log.Fatal("could not migrate db")
+	}
+	return db
+
+}
+
+func getProductDB() *gorm.DB {
+
+	db := getStorageConfig()
+	err := models.MigrateProduct(db)
+	if err != nil {
+		log.Fatal("could not migrate db")
+	}
+	return db
+
+}
+
+func getOrderDB() *gorm.DB {
+
+	db := getStorageConfig()
+	err := models.MigrateOrder(db)
+	if err != nil {
+		log.Fatal("could not migrate db")
+	}
+	return db
+
+}
+
+func getCategoryDB() *gorm.DB {
+
+	db := getStorageConfig()
+	err := models.MigrateCategory(db)
+	if err != nil {
+		log.Fatal("could not migrate db")
+	}
+	return db
+
+}
+
 func main() {
 	server := NewAPIServer(":3000") // runs on 3000
 	shopeeDB := util.ShopeeDatabase{
-		UserDB:   getUserDB(),
-		SellerDB: getSellerDB(),
+		UserDB:     getUserDB(),
+		SellerDB:   getSellerDB(),
+		CartDB:     getCartDB(),
+		OrderDB:    getOrderDB(),
+		CategoryDB: getCategoryDB(),
 	}
 	server.Run(&shopeeDB)
 

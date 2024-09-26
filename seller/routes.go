@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/shopeeProject/shopee/category"
 	"github.com/shopeeProject/shopee/models"
 	util "github.com/shopeeProject/shopee/util"
 )
@@ -28,23 +29,43 @@ type Seller struct {
 	Password     string `json:"password"`
 	Rating       uint   `json:"rating"`
 	Description  string `json:"description"`
+	CategoryID   int    `json:"category"`
 	Image        string `json:"image"`
 	Status       string `json:"status"`
 }
 
 type productDetails struct {
-	SellerId  string `json:"sid"`
-	ProductId string `json:"name"`
+	PID          int
+	Name         string `json:"name"`
+	Price        string `json:"price"`
+	Availability bool   `json:"availability"`
+	Rating       string `json:"rating"`
+	CategoryID   int    `json:"category"`
+	Description  string `json:"description"`
+	SID          string `json:"sid"`
+	Image        string `json:"image"`
 }
+
+// type returnMessage struct {
+// 	Successful bool
+// 	Message    string
+// }
 
 func addProductHandler(r *util.Repository) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		//todo: replace product type
 		req := productDetails{}
 		err := c.ShouldBindJSON(&req)
+		validationResponse := category.ValidateCategory(r, req.CategoryID)
+		if validationResponse.Successful == false {
+			c.SecureJSON(http.StatusBadRequest, gin.H{
+				"message": validationResponse.Message,
+			})
+		}
 		if err != nil {
 			c.SecureJSON(http.StatusBadRequest, err)
 		}
+
 		//we should use r.productdb not seller r.db
 		if err := r.DB.Create(req); err != nil {
 			log.Fatal("failed to update seller:", err)
@@ -62,7 +83,7 @@ func updateProductHandler(r *util.Repository) gin.HandlerFunc {
 			c.SecureJSON(http.StatusBadRequest, err)
 		}
 		//use product db here
-		if err := r.DB.Model(&models.Product{}).Where("p_id = ?", req.ProductId).Updates(req).Error; err != nil {
+		if err := r.DB.Model(&models.Product{}).Where("p_id = ?", req.PID).Updates(req).Error; err != nil {
 			log.Fatal("failed to update seller:", err)
 		}
 		c.SecureJSON(http.StatusAccepted, req)

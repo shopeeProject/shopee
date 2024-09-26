@@ -20,9 +20,18 @@ type Category struct {
 	ID   uint   ` json:"id"`
 	Name string `json:"name"`
 }
+type returnMessage struct {
+	Successful bool
+	Message    string
+}
+
+func ValidateCategory(r *util.Repository, category int) returnMessage {
+	return returnMessage{}
+}
 
 // Add Category Handler
 func addCategoryHandler(r *util.Repository) gin.HandlerFunc {
+
 	return func(c *gin.Context) {
 		var category Category
 		if err := c.ShouldBindJSON(&category); err != nil {

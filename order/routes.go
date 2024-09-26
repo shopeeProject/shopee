@@ -1,14 +1,21 @@
 package order
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/shopeeProject/shopee/models"
+	"github.com/shopeeProject/shopee/payment"
 	util "github.com/shopeeProject/shopee/util"
 	"gorm.io/gorm"
 )
+
+type returnMessage struct {
+	Successful bool
+	Message    string
+}
 
 const (
 	routePrefix = "/order"
@@ -20,9 +27,9 @@ const (
 )
 
 type Order struct {
-	UID           uint     `json:"uid"`
-	Products      []uint   `json:"products"`
-	PaymentID     uint     `json:"payment_id"`
+	UID           int      `json:"uid"`
+	Products      []int    `json:"products"`
+	PaymentID     int      `json:"payment_id"`
 	PaymentStatus string   `json:"payment_status"`
 	Address       string   `json:"address"`
 	Stages        []string `json:"stages"`
@@ -31,7 +38,7 @@ type Order struct {
 }
 
 // Place Order Handler
-func placeOrderHandler(r *util.Repository) gin.HandlerFunc {
+func PlaceOrderHandler(r *util.Repository) gin.HandlerFunc {
 	//todo: buynow and checkout should go through this
 	return func(c *gin.Context) {
 		var order Order
@@ -112,10 +119,40 @@ func addStageHandler(r *util.Repository) gin.HandlerFunc {
 	}
 }
 
+type returnMessageWithData struct {
+	Successful bool
+	Message    string
+	Data       models.Payment
+}
+
+func PlaceOrderHandler1(r *util.Repository, UID int, PIDs []int, productsList map[string]interface{}) returnMessage {
+	order := Order{
+		UID:      UID,
+		Products: PIDs,
+	}
+
+	if err := r.DB.Create(&order).Error; err != nil {
+	}
+
+	var Amount int
+	var orderid int
+	returnmessage := payment.MakePayment(r, UID, Amount)
+	updateFields := models.Payment{}
+	if returnmessage.Successful {
+		err := r.DB.Where(Order{UID: orderid}).Updates(updateFields).Error
+		fmt.Print(err.Error())
+		return returnMessage{}
+
+	}
+
+	return returnMessage{}
+
+}
+
 func RegisterRoutes(router *gin.Engine, r *util.Repository) {
 	v1 := router.Group(routePrefix)
 	{
-		v1.POST(placeOrder, placeOrderHandler(r))
+		v1.POST(placeOrder, PlaceOrderHandler(r))
 		v1.GET(trackOrder, trackOrderHandler(r))
 		v1.DELETE(cancelOrder, cancelOrderHandler(r))
 		v1.PUT(updateOrder, updateOrderHandler(r))

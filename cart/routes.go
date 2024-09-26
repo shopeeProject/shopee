@@ -6,6 +6,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/shopeeProject/shopee/models"
+	"github.com/shopeeProject/shopee/order"
+	"github.com/shopeeProject/shopee/product"
 	util "github.com/shopeeProject/shopee/util"
 )
 
@@ -43,11 +45,21 @@ func getCartDetailsHandler(r *util.Repository) gin.HandlerFunc {
 	}
 }
 
+func GetProductIDsOfUser(UID int) []int {
+	return make([]int, 0)
+}
+
 func checkoutHandler(r *util.Repository) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		//todo
+
 		req := models.Cart{}
 		err := c.ShouldBindJSON(&req)
+
+		productIDs := GetProductIDsOfUser(req.UID)
+		productsList := product.GetProductDetails(productIDs)
+		order.PlaceOrderHandler1(r, req.UID, productIDs, productsList)
+		//exp code above
 		if err != nil {
 			c.SecureJSON(http.StatusBadRequest, err)
 		}

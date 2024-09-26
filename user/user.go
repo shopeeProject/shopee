@@ -51,7 +51,13 @@ func UserSignUp(r *util.Repository) gin.HandlerFunc {
 
 		if ValidateEmail(r, userdetails.EmailAddress).isValid {
 			// fmt.Println(r.DB.Create(models.User{EmailAddress: userdetails.EmailAddress}).Error)
-			r.DB.Where(User{EmailAddress: userdetails.EmailAddress}).FirstOrCreate(&userdetails)
+			err := r.DB.Where(User{EmailAddress: userdetails.EmailAddress}).FirstOrCreate(&userdetails).Error
+			if err != nil {
+				c.JSON(409, gin.H{
+					"message": "Error While creating User",
+				})
+				return
+			}
 			c.JSON(200, gin.H{
 				"message": "User Created succefully",
 			})

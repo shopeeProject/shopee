@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/gin-gonic/gin"
+	"github.com/shopeeProject/shopee/models"
 	util "github.com/shopeeProject/shopee/util"
 )
 
@@ -17,10 +18,16 @@ const (
 	getUser           = "/get-user-details"
 	createUser        = "/create-user"
 	userLogin         = "/user-login"
+	cart              = "/cart"
+	orderlist         = "/orders"
 )
 
+// func getorders (){
+// 	orders.getorders(uid)
+// }
+
 type User struct {
-	UId           uint
+	// UId           uint
 	Name          string `form:"name"`
 	PhoneNumber   string `form:"phoneNumber"`
 	EmailAddress  string `form:"emailAddress"`
@@ -45,7 +52,13 @@ func updateUserDetailsHandler(r *util.Repository) gin.HandlerFunc {
 			return
 		}
 
-		r.DB.Model(&User{}).Updates(userdetails)
+		err := r.DB.Model(&User{}).Updates(userdetails).Error
+		if err != nil {
+			c.JSON(200, gin.H{
+				"message": "Error while updating the User",
+			})
+			return
+		}
 		c.JSON(200, gin.H{
 			"message": "Details Updated successfully",
 		})
@@ -55,7 +68,7 @@ func updateUserDetailsHandler(r *util.Repository) gin.HandlerFunc {
 func getUserHandler(r *util.Repository) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		//fetch user details from db and return
-		usersList := []User{}
+		usersList := []models.User{}
 		r.DB.Find(&usersList)
 		m := map[string]interface{}{
 			"message": "Details Fetched",
@@ -86,7 +99,17 @@ func GroupUserRoutes(router *gin.Engine, r *util.Repository) *gin.RouterGroup {
 		userGroup.POST(validateUser, updateUserDetailsHandler(r))
 		userGroup.POST(deleteFromDb, updateUserDetailsHandler(r))
 		userGroup.GET(getUser, getUserHandler(r))
+		// userGroup.GET(cart, getUserCartHandler(r))
 
 	}
 	return userGroup
 }
+
+/*
+
+Uid 	Pid			COunt
+karthik	mobile	2
+karthik TV 		1
+
+
+*/

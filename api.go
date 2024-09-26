@@ -20,7 +20,7 @@ type APIServer struct {
 func (s *APIServer) Run(r *util.ShopeeDatabase) {
 	router := gin.Default()
 
-	user.GroupUserRoutes(router, &util.Repository{DB: r.UserDB})
+	user.GroupUserRoutes(router, &util.Repository{DB: r.SellerDB})
 	seller.RegisterRoutes(router, &util.Repository{DB: r.SellerDB})
 	cart.RegisterRoutes(router, &util.Repository{DB: r.CartDB})
 	order.RegisterRoutes(router, &util.Repository{DB: r.OrderDB})

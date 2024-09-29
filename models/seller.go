@@ -7,8 +7,8 @@ import (
 type Seller struct {
 	SID          int    `gorm:"primaryKey;autoIncrement" json:"sid"`
 	Name         string `json:"name"`
-	EmailAddress string `json:"email"`
-	Rating       uint   `json:"rating"`
+	EmailAddress string `gorm:"unique;required" json:"email"`
+	Rating       int    `json:"rating"`
 	Password     string `json:"password"`
 	Description  string `json:"description"`
 	Image        string `json:"image"`

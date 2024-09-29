@@ -11,20 +11,21 @@ import (
 	seller "github.com/shopeeProject/shopee/seller"
 	user "github.com/shopeeProject/shopee/user"
 	util "github.com/shopeeProject/shopee/util"
+	"gorm.io/gorm"
 )
 
 type APIServer struct {
 	listenAddr string
 }
 
-func (s *APIServer) Run(r *util.ShopeeDatabase) {
+func (s *APIServer) Run(db *gorm.DB) {
 	router := gin.Default()
 
-	user.GroupUserRoutes(router, &util.Repository{DB: r.SellerDB})
-	seller.RegisterRoutes(router, &util.Repository{DB: r.SellerDB})
-	cart.RegisterRoutes(router, &util.Repository{DB: r.CartDB})
-	order.RegisterRoutes(router, &util.Repository{DB: r.OrderDB})
-	category.RegisterRoutes(router, &util.Repository{DB: r.CategoryDB})
+	user.RegisterRoutes(router, &util.Repository{DB: db})
+	seller.RegisterRoutes(router, &util.Repository{DB: db})
+	cart.RegisterRoutes(router, &util.Repository{DB: db})
+	order.RegisterRoutes(router, &util.Repository{DB: db})
+	category.RegisterRoutes(router, &util.Repository{DB: db})
 
 	log.Println("JSON API server running on port: ", s.listenAddr)
 	http.ListenAndServe(s.listenAddr, router) // starts http server on on address specified and listens for incoming requests

@@ -1,32 +1,41 @@
 package category
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/shopeeProject/shopee/models"
 	util "github.com/shopeeProject/shopee/util"
+	"gorm.io/gorm"
 )
 
 const (
 	routePrefix      = "/category"
 	addCategory      = "/add-category"
-	removeCategory   = "/remove-category/:id"
+	removeCategory   = "/remove-category"
 	getAllCategories = "/get-all-categories"
 )
 
 type Category struct {
-	ID   uint   ` json:"id"`
+	ID   int    ` json:"id"`
 	Name string `json:"name"`
 }
-type returnMessage struct {
-	Successful bool
-	Message    string
-}
 
-func ValidateCategory(r *util.Repository, category int) returnMessage {
-	return returnMessage{}
+func ValidateCategory(db *gorm.DB, category int) util.ReturnMessage {
+	categories, err := fetchAllCategories(db)
+	if err != nil {
+		return util.ReturnMessage{Message: err.Error()}
+	}
+	categoryFound := false
+	for _, val := range categories {
+		if val.Id == category {
+			categoryFound = true
+			break
+		}
+	}
+	return util.ReturnMessage{Successful: categoryFound, Message: "category found"}
 }
 
 // Add Category Handler
@@ -59,12 +68,20 @@ func removeCategoryHandler(r *util.Repository) gin.HandlerFunc {
 	}
 }
 
+func fetchAllCategories(db *gorm.DB) ([]models.Category, error) {
+	var categories []models.Category
+	if err := db.Find(&categories).Error; err != nil {
+		return nil, fmt.Errorf("failed to fetch categories:%s", err.Error())
+	}
+	return categories, nil
+}
+
 // Get All Categories Handler
 func getAllCategoriesHandler(r *util.Repository) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		var categories []models.Category
-		if err := r.DB.Find(&categories).Error; err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch categories"})
+		categories, err := fetchAllCategories(r.DB)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, "error fetching categories")
 			return
 		}
 		c.JSON(http.StatusOK, categories)

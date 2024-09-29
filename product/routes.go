@@ -126,37 +126,40 @@ func updateCount(r *util.Repository) gin.HandlerFunc {
 
 }
 
-type returnMessage struct {
-	Successful bool
-	Message    string
+func GetProductDetails(r *util.Repository, PIDs []int) ([]models.Product, error) {
+	var productDetails []models.Product
+	err := r.DB.Model(&Product{}).Where("pid IN ?", PIDs).Find(productDetails).Error
+	if err != nil {
+		return nil, err
+	}
+	return productDetails, err
 }
 
-func GetProductDetails(productIDs []int) map[string]interface{} {
-	return map[string]interface{}{}
-}
-
-func BuyNow(r *util.Repository, UID int, PID int) returnMessage {
+func BuyNow(r *util.Repository, UID int, PID int) util.ReturnMessage {
 	PIDs := make([]int, 1)
 	PIDs = append(PIDs, PID)
-	productsList := GetProductDetails(PIDs)
+	productsList, err := GetProductDetails(r, PIDs)
+	if err != nil {
+		return util.ReturnMessage{Message: "error fetching product ids"}
+	}
 	fmt.Print(productsList)
 	order.PlaceOrderHandler1(r, UID, PIDs, productsList)
-	return returnMessage{}
+	return util.ReturnMessage{}
 }
 
-func UpdateRating(r *util.Repository, pId int, rating float32) returnMessage {
+func UpdateRating(r *util.Repository, pId int, rating float32) util.ReturnMessage {
 
 	condition := models.Product{PID: pId}
 	err := r.DB.Model(&models.Product{}).Where(condition).Update("rating", rating).Error
 	if err != nil {
-		return returnMessage{
+		return util.ReturnMessage{
 			Successful: false,
 			Message:    "Error while updating rating",
 		}
 
 	}
 
-	return returnMessage{
+	return util.ReturnMessage{
 		Successful: true,
 		Message:    "Rating updated successfully",
 	}

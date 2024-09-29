@@ -14,31 +14,31 @@ type Payment struct {
 	PaymentStatus string `json:"paymentStatus"`
 	Description   string `json:"description"`
 }
-type returnMessageWithData struct {
+type ReturnMessageWithData struct {
 	Successful bool
 	Message    string
 	Data       models.Payment
 }
 
-func getPaymentDetails(r *util.Repository, pId int) returnMessageWithData {
+func getPaymentDetails(r *util.Repository, pId int) ReturnMessageWithData {
 	condition := models.Payment{PayID: pId}
 	PaymentDetails := models.Payment{}
 	err := r.DB.Find(&PaymentDetails, condition).Error
 	r.DB.Where(&models.Order{UID: 12})
 	if err != nil {
-		return returnMessageWithData{
+		return ReturnMessageWithData{
 			Successful: false,
 			Message:    "Error while checking for Payment Deatils",
 		}
 	}
-	return returnMessageWithData{
+	return ReturnMessageWithData{
 		Successful: false,
 		Message:    "Details Fetched successfully",
 		Data:       PaymentDetails,
 	}
 }
 
-func MakePayment(r *util.Repository, UID int, amount int) returnMessageWithData {
+func MakePayment(r *util.Repository, UID int, amount int) ReturnMessageWithData {
 	mumbai, _ := time.LoadLocation("Asia/Kolkata")
 
 	currentTime := time.Now()
@@ -53,7 +53,7 @@ func MakePayment(r *util.Repository, UID int, amount int) returnMessageWithData 
 
 	err := r.DB.Create(&newPayment).Error
 	if err != nil {
-		return returnMessageWithData{
+		return ReturnMessageWithData{
 			Successful: false,
 			Message:    "Error while updating new Payment ID",
 		}
@@ -63,12 +63,12 @@ func MakePayment(r *util.Repository, UID int, amount int) returnMessageWithData 
 
 	err = r.DB.Find(GeneratedPayment, newPayment).Error
 	if err != nil {
-		return returnMessageWithData{
+		return ReturnMessageWithData{
 			Successful: false,
 			Message:    "Error while fetching new Payment ",
 		}
 	}
-	return returnMessageWithData{
+	return ReturnMessageWithData{
 		Successful: true,
 		Message:    "New Payment details updated successfully",
 		Data:       GeneratedPayment,

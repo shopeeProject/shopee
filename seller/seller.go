@@ -22,7 +22,7 @@ func ValidateEmail(r *util.Repository, email string) validation {
 	}
 	seller := models.Seller{EmailAddress: email}
 	sellerModel := []models.Seller{}
-	err := r.DB.Where(seller).Find(&sellerModel).Error
+	err := r.DB.Find(&sellerModel, seller).Error
 	fmt.Println(sellerModel, len(sellerModel), err)
 	if err == nil {
 		if len(sellerModel) == 0 {

@@ -12,11 +12,6 @@ import (
 	"gorm.io/gorm"
 )
 
-type returnMessage struct {
-	Successful bool
-	Message    string
-}
-
 const (
 	routePrefix = "/order"
 	placeOrder  = "/place-order"
@@ -102,7 +97,7 @@ func updateOrderHandler(r *util.Repository) gin.HandlerFunc {
 func addStageHandler(r *util.Repository) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var stage struct {
-			OrderID uint   `json:"order_id"`
+			OrderID int    `json:"order_id"`
 			Stage   string `json:"stage"`
 		}
 		if err := c.ShouldBindJSON(&stage); err != nil {
@@ -119,33 +114,37 @@ func addStageHandler(r *util.Repository) gin.HandlerFunc {
 	}
 }
 
-type returnMessageWithData struct {
-	Successful bool
-	Message    string
-	Data       models.Payment
+func getAmount(productsList []models.Product) int {
+	var amount int
+
+	for _, product := range productsList {
+		amount = amount + product.Price
+	}
+
+	return amount
 }
 
-func PlaceOrderHandler1(r *util.Repository, UID int, PIDs []int, productsList map[string]interface{}) returnMessage {
-	order := Order{
-		UID:      UID,
-		Products: PIDs,
+func PlaceOrderHandler1(r *util.Repository, UID int, PIDs []int, productsList []models.Product) util.ReturnMessage {
+	order := models.Order{
+		UID:           UID,
+		ProductsLists: PIDs,
 	}
 
 	if err := r.DB.Create(&order).Error; err != nil {
+		return util.ReturnMessage{Message: "error creating order object"}
 	}
 
-	var Amount int
-	var orderid int
-	returnmessage := payment.MakePayment(r, UID, Amount)
+	order.Price = getAmount(productsList)
+	returnMessage := payment.MakePayment(r, UID, order.Price)
 	updateFields := models.Payment{}
-	if returnmessage.Successful {
-		err := r.DB.Where(Order{UID: orderid}).Updates(updateFields).Error
+	if returnMessage.Successful {
+		err := r.DB.Where(models.Order{OID: order.OID}).Updates(updateFields).Error
 		fmt.Print(err.Error())
-		return returnMessage{}
+		return util.ReturnMessage{Successful: true}
 
 	}
 
-	return returnMessage{}
+	return util.ReturnMessage{}
 
 }
 
@@ -155,7 +154,7 @@ func RegisterRoutes(router *gin.Engine, r *util.Repository) {
 		v1.POST(placeOrder, PlaceOrderHandler(r))
 		v1.GET(trackOrder, trackOrderHandler(r))
 		v1.DELETE(cancelOrder, cancelOrderHandler(r))
-		v1.PUT(updateOrder, updateOrderHandler(r))
+		v1.PATCH(updateOrder, updateOrderHandler(r))
 		v1.POST(addStage, addStageHandler(r))
 	}
 }

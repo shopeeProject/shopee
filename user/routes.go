@@ -27,7 +27,7 @@ const (
 // }
 
 type User struct {
-	// UId           uint
+	// UId           int
 	Name          string `form:"name"`
 	PhoneNumber   string `form:"phoneNumber"`
 	EmailAddress  string `form:"emailAddress"`
@@ -52,7 +52,7 @@ func updateUserDetailsHandler(r *util.Repository) gin.HandlerFunc {
 			return
 		}
 
-		err := r.DB.Model(&User{}).Updates(userdetails).Error
+		err := r.DB.Model(&models.User{}).Updates(userdetails).Error
 		if err != nil {
 			c.JSON(200, gin.H{
 				"message": "Error while updating the User",
@@ -80,6 +80,7 @@ func getUserHandler(r *util.Repository) gin.HandlerFunc {
 
 }
 
+// todo
 func AuthoriseUser(r *util.Repository) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		paramPairs := c.Request.URL.Query()
@@ -89,7 +90,7 @@ func AuthoriseUser(r *util.Repository) gin.HandlerFunc {
 		c.Next()
 	}
 }
-func GroupUserRoutes(router *gin.Engine, r *util.Repository) *gin.RouterGroup {
+func RegisterRoutes(router *gin.Engine, r *util.Repository) *gin.RouterGroup {
 	router.POST(createUser, UserSignUp(r))
 	router.POST(userLogin, UserLogin(r))
 	userGroup := router.Group("/user")

@@ -23,11 +23,11 @@ const (
 )
 
 type Seller struct {
-	// SID          uint   `json:"sid"`
+	// SID          int   `json:"sid"`
 	Name         string `json:"name"`
 	EmailAddress string `json:"email"`
 	Password     string `json:"password"`
-	Rating       uint   `json:"rating"`
+	Rating       int    `json:"rating"`
 	Description  string `json:"description"`
 	CategoryID   int    `json:"category"`
 	Image        string `json:"image"`
@@ -35,7 +35,7 @@ type Seller struct {
 }
 
 type productDetails struct {
-	PID          int
+	// PID          int
 	Name         string `json:"name"`
 	Price        string `json:"price"`
 	Availability bool   `json:"availability"`
@@ -46,28 +46,25 @@ type productDetails struct {
 	Image        string `json:"image"`
 }
 
-// type returnMessage struct {
-// 	Successful bool
-// 	Message    string
-// }
-
 func addProductHandler(r *util.Repository) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		//todo: replace product type
+
 		req := productDetails{}
 		err := c.ShouldBindJSON(&req)
-		validationResponse := category.ValidateCategory(r, req.CategoryID)
+
+		if err != nil {
+			c.SecureJSON(http.StatusBadRequest, err)
+		}
+
+		validationResponse := category.ValidateCategory(r.DB, req.CategoryID)
 		if validationResponse.Successful == false {
 			c.SecureJSON(http.StatusBadRequest, gin.H{
 				"message": validationResponse.Message,
 			})
 		}
-		if err != nil {
-			c.SecureJSON(http.StatusBadRequest, err)
-		}
 
-		//we should use r.productdb not seller r.db
-		if err := r.DB.Create(req); err != nil {
+		//if valid category add product to product table
+		if err := r.DB.Create(&req); err != nil {
 			log.Fatal("failed to update seller:", err)
 		}
 
@@ -77,21 +74,22 @@ func addProductHandler(r *util.Repository) gin.HandlerFunc {
 
 func updateProductHandler(r *util.Repository) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		req := productDetails{}
+
+		req := models.Product{}
 		err := c.ShouldBindJSON(&req)
 		if err != nil {
 			c.SecureJSON(http.StatusBadRequest, err)
 		}
-		//use product db here
+
 		if err := r.DB.Model(&models.Product{}).Where("p_id = ?", req.PID).Updates(req).Error; err != nil {
 			log.Fatal("failed to update seller:", err)
 		}
-		c.SecureJSON(http.StatusAccepted, req)
+		c.SecureJSON(http.StatusAccepted, "updated product details")
 	}
 }
 
 func updateStatusHandler(r *util.Repository) gin.HandlerFunc {
-	//what status to be u[dated] todo
+	//todo what status to be updated
 	return func(c *gin.Context) {
 		sellerNewDetails := Seller{}
 		err := c.ShouldBindJSON(&sellerNewDetails)
@@ -119,6 +117,7 @@ func updateDetailsHandler(r *util.Repository) gin.HandlerFunc {
 	}
 }
 
+// todo
 func AuthoriseSeller(r *util.Repository) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		paramPairs := c.Request.URL.Query()
@@ -136,9 +135,9 @@ func RegisterRoutes(router *gin.Engine, r *util.Repository) *gin.RouterGroup {
 	v1.Use(AuthoriseSeller(r))
 	{
 		v1.POST(addProduct, addProductHandler(r))
-		v1.POST(updateProduct, updateProductHandler(r))
-		v1.POST(updateStatus, updateStatusHandler(r))
-		v1.POST(updateDetails, updateDetailsHandler(r))
+		v1.PATCH(updateProduct, updateProductHandler(r))
+		v1.PATCH(updateStatus, updateStatusHandler(r))
+		v1.PATCH(updateDetails, updateDetailsHandler(r))
 	}
 	return v1
 }

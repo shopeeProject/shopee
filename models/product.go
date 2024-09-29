@@ -5,7 +5,7 @@ import "gorm.io/gorm"
 type Product struct {
 	PID          int    `gorm:"primary key;autoIncrement" json:"pid"`
 	Name         string `json:"name"`
-	Price        string `json:"price"`
+	Price        int    `json:"price"`
 	Availability bool   `json:"availability"`
 	Rating       string `json:"rating"`
 	CategoryID   int    `json:"category"`

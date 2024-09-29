@@ -8,7 +8,6 @@ import (
 	"github.com/joho/godotenv"
 	models "github.com/shopeeProject/shopee/models"
 	"github.com/shopeeProject/shopee/storage"
-	util "github.com/shopeeProject/shopee/util"
 	"gorm.io/gorm"
 )
 
@@ -34,31 +33,24 @@ func getStorageConfig() *gorm.DB {
 	return db
 }
 
-func getUserDB() *gorm.DB {
+func getUserDB(db *gorm.DB) {
 
-	db := getStorageConfig()
 	err := models.MigrateUser(db)
 	if err != nil {
-		log.Fatal("could not migrate db")
+		log.Fatal("could not migrate User db")
 	}
-	return db
 
 }
 
-func getSellerDB() *gorm.DB {
-
-	db := getStorageConfig()
+func getSellerDB(db *gorm.DB) {
 	err := models.MigrateSeller(db)
 	if err != nil {
-		log.Fatal("could not migrate db")
+		log.Fatal("could not migrate Seller db")
 	}
-	return db
 
 }
 
-func getCartDB() *gorm.DB {
-
-	db := getStorageConfig()
+func getCartDB(db *gorm.DB) *gorm.DB {
 	err := models.MigrateCart(db)
 	if err != nil {
 		log.Fatal("could not migrate db")
@@ -67,50 +59,45 @@ func getCartDB() *gorm.DB {
 
 }
 
-func getProductDB() *gorm.DB {
-
-	db := getStorageConfig()
+func getProductDB(db *gorm.DB) {
 	err := models.MigrateProduct(db)
 	if err != nil {
 		log.Fatal("could not migrate db")
 	}
-	return db
 
 }
 
-func getOrderDB() *gorm.DB {
-
-	db := getStorageConfig()
+func getOrderDB(db *gorm.DB) {
 	err := models.MigrateOrder(db)
 	if err != nil {
 		log.Fatal("could not migrate db")
 	}
-	return db
 
 }
 
-func getCategoryDB() *gorm.DB {
-
-	db := getStorageConfig()
+func getCategoryDB(db *gorm.DB) {
 	err := models.MigrateCategory(db)
 	if err != nil {
 		log.Fatal("could not migrate db")
 	}
-	return db
+
+}
+
+func migrateAllDB(db *gorm.DB) {
+	getUserDB(db)
+	getSellerDB(db)
+	getCartDB(db)
+	getOrderDB(db)
+	getCategoryDB(db)
 
 }
 
 func main() {
 	server := NewAPIServer(":3000") // runs on 3000
-	shopeeDB := util.ShopeeDatabase{
-		UserDB:     getUserDB(),
-		SellerDB:   getSellerDB(),
-		CartDB:     getCartDB(),
-		OrderDB:    getOrderDB(),
-		CategoryDB: getCategoryDB(),
-	}
-	server.Run(&shopeeDB)
 
-	// call run
+	db := getStorageConfig()
+	migrateAllDB(db)
+	server.Run(db)
+
 	fmt.Println("Hi Buddy!!, Server is running")
 }

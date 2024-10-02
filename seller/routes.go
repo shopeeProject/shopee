@@ -57,7 +57,7 @@ func addProductHandler(r *util.Repository) gin.HandlerFunc {
 		}
 
 		validationResponse := category.ValidateCategory(r.DB, req.CategoryID)
-		if validationResponse.Successful == false {
+		if validationResponse.Success == false {
 			c.SecureJSON(http.StatusBadRequest, gin.H{
 				"message": validationResponse.Message,
 			})

@@ -6,7 +6,7 @@ type Repository struct {
 	DB *gorm.DB
 }
 
-type ReturnMessage struct {
-	Successful bool
-	Message    string
+type Response struct {
+	Success bool
+	Message string
 }

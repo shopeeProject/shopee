@@ -124,14 +124,14 @@ func getAmount(productsList []models.Product) int {
 	return amount
 }
 
-func PlaceOrderHandler1(r *util.Repository, UID int, PIDs []int, productsList []models.Product) util.ReturnMessage {
+func PlaceOrderHandler1(r *util.Repository, UID int, PIDs []int, productsList []models.Product) util.Response {
 	order := models.Order{
 		UID:           UID,
 		ProductsLists: PIDs,
 	}
 
 	if err := r.DB.Create(&order).Error; err != nil {
-		return util.ReturnMessage{Message: "error creating order object"}
+		return util.Response{Message: "error creating order object"}
 	}
 
 	order.Price = getAmount(productsList)
@@ -140,11 +140,11 @@ func PlaceOrderHandler1(r *util.Repository, UID int, PIDs []int, productsList []
 	if returnMessage.Successful {
 		err := r.DB.Where(models.Order{OID: order.OID}).Updates(updateFields).Error
 		fmt.Print(err.Error())
-		return util.ReturnMessage{Successful: true}
+		return util.Response{Success: true}
 
 	}
 
-	return util.ReturnMessage{}
+	return util.Response{}
 
 }
 

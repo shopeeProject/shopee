@@ -1,179 +1,197 @@
 package product
 
 import (
-	"fmt"
+	"log"
+	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/shopeeProject/shopee/models"
-	"github.com/shopeeProject/shopee/order"
+	order "github.com/shopeeProject/shopee/order"
+	rating "github.com/shopeeProject/shopee/rating"
 	util "github.com/shopeeProject/shopee/util"
 )
 
 const (
-	getProductDetails = "/:id"
+	routePrefix       = "/product"
+	updateCount       = "/update-count"
+	updateRating      = "/update-rating"
+	addRating         = "/add-rating"
+	deleteRating      = "/delete-rating"
+	buyNow            = "/buy-now"
+	getProductDetails = "/get-product"
 )
 
-func getProductDetailsHandler(r *util.Repository) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		//fetch user details from db and return
-		pId, err := strconv.Atoi(c.Param("id"))
-		if err != nil {
-			c.JSON(409, gin.H{
-				"message": "Invalid Product ID",
-			})
-			return
-		}
-		product := []models.Product{}
-		condition := models.Product{PID: pId}
-
-		err = r.DB.Find(&product, condition).Error
-		if err != nil {
-			c.JSON(409, gin.H{
-				"message": "Error while fetching Product",
-			})
-			return
-		}
-		if len(product) == 0 {
-			c.JSON(409, gin.H{
-				"message": "Error while fetching Product",
-			})
-			return
-		}
-		m := map[string]interface{}{
-			"message": "Details Fetched",
-			"data":    product[0],
-		}
-		c.JSON(200, m)
+func ComputeRating(r *util.Repository, newRating rating.Rating) util.Response {
+	condition := rating.Rating{
+		PID: newRating.PID,
 	}
+	var count int64
+	err := r.DB.Model(&models.Rating{}).Where(condition).Count(&count).Error
+	if err != nil {
+		return util.Response{
+			Message: "Error while checking for past ratings" + err.Error(),
+		}
+	}
+	var resultSum int64
+	err = r.DB.Model(&models.Rating{}).Select("sum(rating)").Where(condition).Group("p_i_d").First(&resultSum).Error
+	if err != nil {
+		return util.Response{
+			Message: "Error while checking for past ratings" + err.Error(),
+		}
+	}
+	newRatingValue := float32(resultSum) / float32(count)
+
+	ratingUpdateResponseFromProduct := UpdateRatingForProduct(r, newRating.PID, newRatingValue)
+	return ratingUpdateResponseFromProduct
 
 }
 
-type Product struct {
-	PID          int
-	Name         string `json:"name"`
-	Price        string `json:"price"`
-	Availability bool   `json:"availability"`
-	Rating       string `json:"rating"`
-	CategoryID   int    `json:"category"`
-	Description  string `json:"description"`
-	SID          string `json:"sid"`
-	Image        string `json:"image"`
-}
+func UpdateRatingForProduct(r *util.Repository, pid int, ratingValue float32) util.Response {
 
-func updateAvailability(r *util.Repository) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		//fetch user details from db and return
-		pId, err := strconv.Atoi(c.Param("pid"))
-		if err != nil {
-			c.JSON(409, gin.H{
-				"message": "Invalid Product ID",
-			})
-			return
-		}
-		// product := []models.Product{}
-		condition := models.Product{PID: pId}
-		availability := c.Param("count")
-
-		err = r.DB.Model(&models.Product{}).Where(condition).Update("availability", availability).Error
-		if err != nil {
-			c.JSON(409, gin.H{
-				"message": "Error while Updating Product",
-			})
-			return
-		}
-
-		m := map[string]interface{}{
-			"message": "Data Updated successfully",
-		}
-		c.JSON(200, m)
+	// Update the product count in the database
+	if err := r.DB.Model(&models.Product{}).Where("pid = ?", pid).Update("rating", ratingValue).Error; err != nil {
+		log.Fatal("failed to update product rating:", err)
+		return util.Response{Message: "failed to update product rating"}
 	}
 
+	return util.Response{Success: true}
 }
 
-func updateCount(r *util.Repository) gin.HandlerFunc {
+// Update product count
+func UpdateCountHandler(r *util.Repository) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		//fetch user details from db and return
-		pId, err := strconv.Atoi(c.Param("pid"))
-		if err != nil {
-			c.JSON(409, gin.H{
-				"message": "Invalid Product ID",
-			})
-			return
+		var req struct {
+			PID   int `json:"pid" binding:"required"`
+			Count int `json:"count" binding:"required"`
 		}
-		// product := []models.Product{}
-		condition := models.Product{PID: pId}
-		count, err := strconv.Atoi(c.Param("count"))
-		if err != nil {
-			c.JSON(409, gin.H{
-				"message": "Invalid Count Value",
-			})
-			return
-		}
-		err = r.DB.Model(&models.Product{}).Where(condition).Update("count", count).Error
-		if err != nil {
-			c.JSON(409, gin.H{
-				"message": "Error while Updating Product",
-			})
+
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.SecureJSON(http.StatusBadRequest, err)
 			return
 		}
 
-		m := map[string]interface{}{
-			"message": "Data Updated successfully",
+		// Update the product count in the database
+		if err := r.DB.Model(&models.Product{}).Where("pid = ?", req.PID).Update("count", req.Count).Error; err != nil {
+			log.Fatal("failed to update product count:", err)
+			c.SecureJSON(http.StatusInternalServerError, gin.H{"message": "error updating product count"})
+			return
 		}
-		c.JSON(200, m)
+
+		c.SecureJSON(http.StatusOK, "product count updated")
 	}
+}
 
+// Update product rating
+func UpdateRatingHandler(r *util.Repository) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var req rating.Rating
+
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.SecureJSON(http.StatusBadRequest, err)
+			return
+		}
+		errStruct := rating.ModifyRating(r, req)
+		// // Update the product rating in the database
+		if !errStruct.Success {
+			c.SecureJSON(http.StatusInternalServerError, gin.H{"message": "error updating product rating"})
+			return
+		}
+
+		c.SecureJSON(http.StatusOK, "product rating updated")
+	}
+}
+
+func AddRatingHandler(r *util.Repository) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var req rating.Rating
+
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.SecureJSON(http.StatusBadRequest, err)
+			return
+		}
+		errStruct := rating.AddRating(r, req)
+		// // Update the product rating in the database
+		if !errStruct.Success {
+			c.SecureJSON(http.StatusInternalServerError, gin.H{"message": "error updating product rating"})
+			return
+		}
+
+		c.SecureJSON(http.StatusOK, "product rating updated")
+	}
+}
+
+// Buy product (simplified)
+func BuyNowHandler(r *util.Repository) gin.HandlerFunc {
+	return func(c *gin.Context) {
+
+		var req struct {
+			PID    int `json:"pid" binding:"required"`
+			UserID int `json:"uid" binding:"required"`
+		}
+
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.SecureJSON(http.StatusBadRequest, err)
+			return
+		}
+
+		productIdArray := []int{req.PID}
+		productsList, err := GetProductDetails(r, productIdArray)
+		if err != nil {
+			c.SecureJSON(http.StatusBadRequest, err)
+		}
+		returnMessage := order.PlaceOrderHandler1(r, req.UserID, productIdArray, productsList)
+		if returnMessage.Success == false {
+
+			c.SecureJSON(http.StatusInternalServerError, "buynow failed")
+		}
+		//exp code above
+		c.SecureJSON(http.StatusOK, gin.H{"message": "purchase successful", "pid": req.PID})
+	}
 }
 
 func GetProductDetails(r *util.Repository, PIDs []int) ([]models.Product, error) {
 	var productDetails []models.Product
-	err := r.DB.Model(&Product{}).Where("pid IN ?", PIDs).Find(productDetails).Error
+	err := r.DB.Model(&models.Product{}).Where("pid IN ?", PIDs).Find(productDetails).Error
 	if err != nil {
 		return nil, err
 	}
 	return productDetails, err
 }
 
-func BuyNow(r *util.Repository, UID int, PID int) util.ReturnMessage {
-	PIDs := make([]int, 1)
-	PIDs = append(PIDs, PID)
-	productsList, err := GetProductDetails(r, PIDs)
-	if err != nil {
-		return util.ReturnMessage{Message: "error fetching product ids"}
-	}
-	fmt.Print(productsList)
-	order.PlaceOrderHandler1(r, UID, PIDs, productsList)
-	return util.ReturnMessage{}
-}
-
-func UpdateRating(r *util.Repository, pId int, rating float32) util.ReturnMessage {
-
-	condition := models.Product{PID: pId}
-	err := r.DB.Model(&models.Product{}).Where(condition).Update("rating", rating).Error
-	if err != nil {
-		return util.ReturnMessage{
-			Successful: false,
-			Message:    "Error while updating rating",
+// Get product details using query parameters
+func GetProductDetailsHandler(r *util.Repository) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		pid, err := strconv.Atoi(c.Query("pid")) // Get PID from query parameter
+		if err != nil {
+			c.SecureJSON(http.StatusBadRequest, gin.H{"message": "pid is required"})
+			return
 		}
 
-	}
+		productIDArray := []int{pid}
+		productList, err := GetProductDetails(r, productIDArray)
 
-	return util.ReturnMessage{
-		Successful: true,
-		Message:    "Rating updated successfully",
-	}
+		// Fetch product from the database
+		if err != nil {
+			log.Fatal("product not found:", err)
+			c.SecureJSON(http.StatusNotFound, gin.H{"message": "product not found"})
+			return
+		}
 
+		c.SecureJSON(http.StatusOK, productList[0])
+	}
 }
 
-func GroupProductRoutes(router *gin.Engine, r *util.Repository) *gin.RouterGroup {
-	// router.GET(createUser, UserSignUp(r))
-	// router.POST(userLogin, UserLogin(r))
-	userGroup := router.Group("/product")
-	userGroup.Use()
+func RegisterRoutes(router *gin.Engine, r *util.Repository) *gin.RouterGroup {
+	// todo validate if request is coming from valid seller/user
+	v1 := router.Group(routePrefix)
 	{
-		userGroup.GET(getProductDetails, getProductDetailsHandler(r))
-
+		v1.PATCH(updateCount, UpdateCountHandler(r))
+		v1.PATCH(updateRating, UpdateRatingHandler(r))
+		v1.POST(addRating, UpdateRatingHandler(r))
+		v1.DELETE(deleteRating, UpdateRatingHandler(r))
+		v1.POST(buyNow, BuyNowHandler(r))
+		v1.GET(getProductDetails, GetProductDetailsHandler(r))
 	}
-	return userGroup
+	return v1
 }

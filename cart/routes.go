@@ -7,7 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/shopeeProject/shopee/models"
 	"github.com/shopeeProject/shopee/order"
-	"github.com/shopeeProject/shopee/product"
+	product "github.com/shopeeProject/shopee/product"
 	util "github.com/shopeeProject/shopee/util"
 )
 
@@ -48,7 +48,7 @@ func checkoutHandler(r *util.Repository) gin.HandlerFunc {
 		if err != nil {
 			c.SecureJSON(http.StatusInternalServerError, "error fetching product ids")
 		}
-		productsList,err := product.GetProductDetails(r, productIDs)
+		productsList, err := product.GetProductDetails(r, productIDs)
 		order.PlaceOrderHandler1(r, req.UID, productIDs, productsList)
 		//exp code above
 		if err != nil {

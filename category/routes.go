@@ -23,10 +23,10 @@ type Category struct {
 	Name string `json:"name"`
 }
 
-func ValidateCategory(db *gorm.DB, category int) util.ReturnMessage {
+func ValidateCategory(db *gorm.DB, category int) util.Response {
 	categories, err := fetchAllCategories(db)
 	if err != nil {
-		return util.ReturnMessage{Message: err.Error()}
+		return util.Response{Message: err.Error()}
 	}
 	categoryFound := false
 	for _, val := range categories {
@@ -35,7 +35,7 @@ func ValidateCategory(db *gorm.DB, category int) util.ReturnMessage {
 			break
 		}
 	}
-	return util.ReturnMessage{Successful: categoryFound, Message: "category found"}
+	return util.Response{Success: categoryFound, Message: "category found"}
 }
 
 // Add Category Handler

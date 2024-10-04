@@ -1,9 +1,8 @@
 package user
 
 import (
-	"fmt"
-
 	"github.com/gin-gonic/gin"
+	jwthandler "github.com/shopeeProject/shopee/jwt"
 	"github.com/shopeeProject/shopee/models"
 	util "github.com/shopeeProject/shopee/util"
 )
@@ -20,6 +19,7 @@ const (
 	userLogin         = "/user-login"
 	cart              = "/cart"
 	orderlist         = "/orders"
+	logout            = "/logout"
 )
 
 // func getorders (){
@@ -80,16 +80,51 @@ func getUserHandler(r *util.Repository) gin.HandlerFunc {
 
 }
 
+func getLogoutHandler(r *util.Repository) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		user := User{}
+		c.BindJSON(&user)
+		refreshTokenRemovalResponse := jwthandler.RemoveRefreshTokenFromDB(user.EmailAddress)
+		if !refreshTokenRemovalResponse.Success {
+			m := map[string]interface{}{
+				"message": "Unable to logout " + refreshTokenRemovalResponse.Message,
+			}
+			c.JSON(409, m)
+		}
+		m := map[string]interface{}{
+			"message": refreshTokenRemovalResponse.Message,
+		}
+
+		c.JSON(200, m)
+	}
+
+}
+
 // todo
 func AuthoriseUser(r *util.Repository) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		paramPairs := c.Request.URL.Query()
-		for key, values := range paramPairs {
-			fmt.Printf("key = %v, value(s) = %v\n", key, values)
+		accessToken, ok := paramPairs["accessToken"]
+		if !ok {
+			returnString := map[string]interface{}{
+				"message": "Access token not found in the request",
+			}
+			c.SecureJSON(409, returnString)
+			return
+		}
+		// println(accessToken)
+		tokenValidationResponse := jwthandler.JwtMiddleware(accessToken[0])
+		if !tokenValidationResponse.Success {
+			returnString := map[string]interface{}{
+				"message": tokenValidationResponse.Message,
+			}
+			c.SecureJSON(409, returnString)
+			return
 		}
 		c.Next()
 	}
 }
+
 func RegisterRoutes(router *gin.Engine, r *util.Repository) *gin.RouterGroup {
 	router.POST(createUser, UserSignUp(r))
 	router.POST(userLogin, UserLogin(r))
@@ -100,6 +135,7 @@ func RegisterRoutes(router *gin.Engine, r *util.Repository) *gin.RouterGroup {
 		userGroup.POST(validateUser, updateUserDetailsHandler(r))
 		userGroup.POST(deleteFromDb, updateUserDetailsHandler(r))
 		userGroup.GET(getUser, getUserHandler(r))
+		userGroup.POST(logout, getLogoutHandler(r))
 		// userGroup.GET(cart, getUserCartHandler(r))
 
 	}

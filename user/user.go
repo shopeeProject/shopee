@@ -2,12 +2,13 @@ package user
 
 import (
 	"fmt"
-
-	"golang.org/x/crypto/bcrypt"
+	"net/http"
 
 	"github.com/gin-gonic/gin"
+	jwthandler "github.com/shopeeProject/shopee/jwt"
 	"github.com/shopeeProject/shopee/models"
 	util "github.com/shopeeProject/shopee/util"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type validation struct {
@@ -98,10 +99,25 @@ func UserLogin(r *util.Repository) gin.HandlerFunc {
 		c.Bind(&userdetails)
 		credentialValidator := validateUserCredentials(r, userdetails)
 		if credentialValidator.isValid {
-			c.JSON(200, gin.H{
-				"message": "User Validated succefully",
+			accessToken, err := jwthandler.GenerateAccessToken(userdetails.EmailAddress)
+			if err != nil {
+				c.SecureJSON(http.StatusInternalServerError, &map[string]string{
+					"message": "Error while generating accessToken" + err.Error(),
+				})
+			}
+			refreshToken, err := jwthandler.GenerateRefreshToken(userdetails.EmailAddress)
+			if err != nil {
+				c.SecureJSON(http.StatusInternalServerError, &map[string]string{
+					"message": "Error while generating refresh token" + err.Error(),
+				})
+			}
+			c.SecureJSON(http.StatusOK, &map[string]string{
+				"message":      "User Validated successfully",
+				"accessToken":  accessToken,
+				"refreshToken": refreshToken,
 			})
 			return
+
 		}
 		c.JSON(409, gin.H{
 			"message": credentialValidator.message,

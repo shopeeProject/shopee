@@ -10,3 +10,9 @@ type Response struct {
 	Success bool
 	Message string
 }
+
+type DataResponse struct {
+	Success bool
+	Message string
+	Data    map[string]string
+}

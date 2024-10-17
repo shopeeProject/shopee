@@ -2,6 +2,7 @@ package jwthandler
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -92,17 +93,22 @@ func Refresh1(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func JwtMiddleware(tokenString string) util.Response {
+func JwtMiddleware(tokenString string) util.DataResponse {
 	claims := &Claims{}
 	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
 		return secretKey, nil
 	})
-
+	fmt.Println(claims.Username)
+	if err != nil {
+		return util.DataResponse{Success: false, Message: err.Error()}
+	}
 	if err != nil || !token.Valid {
 
-		return util.Response{Success: false, Message: "Invalid Token"}
+		return util.DataResponse{Success: false, Message: "Invalid Token"}
 	}
-	return util.Response{Success: true, Message: "Token Authentication Successful"}
+	m := map[string]string{"Username": claims.Username}
+
+	return util.DataResponse{Success: true, Message: "Token Authentication Successful", Data: m}
 }
 
 func jwtMiddleware1(next http.Handler) http.Handler {

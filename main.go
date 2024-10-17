@@ -93,7 +93,7 @@ func migrateAllDB(db *gorm.DB) {
 }
 
 func main() {
-	server := NewAPIServer(":3000") // runs on 3000
+	server := NewAPIServer(":5000") // runs on 5000
 
 	db := getStorageConfig()
 	migrateAllDB(db)

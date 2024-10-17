@@ -1,6 +1,8 @@
 package user
 
 import (
+	"fmt"
+
 	"github.com/gin-gonic/gin"
 	jwthandler "github.com/shopeeProject/shopee/jwt"
 	"github.com/shopeeProject/shopee/models"
@@ -36,6 +38,15 @@ type User struct {
 	Password      string `form:"password"`
 }
 
+type ExportUser struct {
+	// UId           int
+	Name          string `form:"name"`
+	PhoneNumber   string `form:"phoneNumber"`
+	EmailAddress  string `form:"emailAddress"`
+	AccountStatus string `form:"accountStatus"`
+	Address       string `form:"address"`
+}
+
 func updateUserDetailsHandler(r *util.Repository) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var userdetails User
@@ -68,11 +79,42 @@ func updateUserDetailsHandler(r *util.Repository) gin.HandlerFunc {
 func getUserHandler(r *util.Repository) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		//fetch user details from db and return
-		usersList := []models.User{}
-		r.DB.Find(&usersList)
+		// usersList := []models.User{}
+		// r.DB.Find(&usersList)
+		var userdetails = User{}
+		c.Bind(&userdetails)
+		// fmt.Println(userdetails, c.Get("emailAddress"))
+		currentUser := []User{}
+
+		email, ok := c.Get("emailAddress")
+		if !ok {
+			c.JSON(309, map[string]interface{}{
+				"message": "Couldn't find User",
+			})
+			return
+		}
+		str, ok := email.(string)
+		if !ok {
+			c.JSON(309, map[string]interface{}{
+				"message": "Couldn't find User",
+			})
+			return
+		}
+		condition := User{EmailAddress: str}
+		fmt.Println(condition)
+		r.DB.Limit(1).Find(&currentUser, condition)
+
+		if len(currentUser) == 0 {
+			c.JSON(309, map[string]interface{}{
+				"message": "Couldn't find User",
+			})
+			return
+		}
+		// delete(currentUser[0],"Password")
+		currentUser[0].Password = ""
 		m := map[string]interface{}{
 			"message": "Details Fetched",
-			"data":    usersList,
+			"data":    currentUser[0],
 		}
 
 		c.JSON(200, m)
@@ -82,14 +124,31 @@ func getUserHandler(r *util.Repository) gin.HandlerFunc {
 
 func getLogoutHandler(r *util.Repository) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		user := User{}
-		c.BindJSON(&user)
-		refreshTokenRemovalResponse := jwthandler.RemoveRefreshTokenFromDB(user.EmailAddress)
+		var user = User{}
+		c.Bind(&user)
+		email, ok := c.Get("emailAddress")
+		if !ok {
+			c.JSON(309, map[string]interface{}{
+				"message": "Couldn't find User",
+			})
+			return
+		}
+		str, ok := email.(string)
+		if !ok {
+			c.JSON(309, map[string]interface{}{
+				"message": "Couldn't find User",
+			})
+			return
+		}
+		fmt.Println(str)
+		refreshTokenRemovalResponse := jwthandler.RemoveRefreshTokenFromDB(str)
+		fmt.Println(refreshTokenRemovalResponse)
 		if !refreshTokenRemovalResponse.Success {
 			m := map[string]interface{}{
 				"message": "Unable to logout " + refreshTokenRemovalResponse.Message,
 			}
 			c.JSON(409, m)
+			c.Abort()
 		}
 		m := map[string]interface{}{
 			"message": refreshTokenRemovalResponse.Message,
@@ -103,24 +162,30 @@ func getLogoutHandler(r *util.Repository) gin.HandlerFunc {
 // todo
 func AuthoriseUser(r *util.Repository) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		paramPairs := c.Request.URL.Query()
-		accessToken, ok := paramPairs["accessToken"]
+		// paramPairs := c.Request.URL.Query()
+
+		accessToken, ok := c.Request.Header["Authorization"]
 		if !ok {
 			returnString := map[string]interface{}{
 				"message": "Access token not found in the request",
 			}
 			c.SecureJSON(409, returnString)
+			c.Abort()
 			return
 		}
-		// println(accessToken)
+		fmt.Println(accessToken)
 		tokenValidationResponse := jwthandler.JwtMiddleware(accessToken[0])
+		fmt.Println(tokenValidationResponse.Message)
 		if !tokenValidationResponse.Success {
 			returnString := map[string]interface{}{
 				"message": tokenValidationResponse.Message,
 			}
 			c.SecureJSON(409, returnString)
+			c.Abort()
 			return
 		}
+		c.Set("emailAddress", tokenValidationResponse.Data["Username"])
+
 		c.Next()
 	}
 }
@@ -135,7 +200,7 @@ func RegisterRoutes(router *gin.Engine, r *util.Repository) *gin.RouterGroup {
 		userGroup.POST(validateUser, updateUserDetailsHandler(r))
 		userGroup.POST(deleteFromDb, updateUserDetailsHandler(r))
 		userGroup.GET(getUser, getUserHandler(r))
-		userGroup.POST(logout, getLogoutHandler(r))
+		userGroup.GET(logout, getLogoutHandler(r))
 		// userGroup.GET(cart, getUserCartHandler(r))
 
 	}

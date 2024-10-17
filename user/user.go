@@ -79,6 +79,7 @@ func validateUserCredentials(r *util.Repository, userdetails User) validation {
 		UserModel := []models.User{}
 		err := r.DB.Where(u).Find(&UserModel).Error
 		if err == nil {
+			fmt.Println(UserModel, "Usermodel print User login")
 			if len(UserModel) == 1 {
 				if bcrypt.CompareHashAndPassword([]byte(UserModel[0].Password), []byte(password)) == nil {
 					return validation{true, "Password verified successfully"}

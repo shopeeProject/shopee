@@ -8,6 +8,7 @@ import (
 	cart "github.com/shopeeProject/shopee/cart"
 	category "github.com/shopeeProject/shopee/category"
 	order "github.com/shopeeProject/shopee/order"
+	product "github.com/shopeeProject/shopee/product"
 	seller "github.com/shopeeProject/shopee/seller"
 	user "github.com/shopeeProject/shopee/user"
 	util "github.com/shopeeProject/shopee/util"
@@ -26,6 +27,7 @@ func (s *APIServer) Run(db *gorm.DB) {
 	cart.RegisterRoutes(router, &util.Repository{DB: db})
 	order.RegisterRoutes(router, &util.Repository{DB: db})
 	category.RegisterRoutes(router, &util.Repository{DB: db})
+	product.RegisterRoutes(router, &util.Repository{DB: db})
 
 	log.Println("JSON API server running on port: ", s.listenAddr)
 	http.ListenAndServe(s.listenAddr, router) // starts http server on on address specified and listens for incoming requests

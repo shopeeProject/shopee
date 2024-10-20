@@ -20,6 +20,7 @@ const (
 	deleteRating      = "/delete-rating"
 	buyNow            = "/buy-now"
 	getProductDetails = "/get-product"
+	getAllProducts    = "/get-all-products"
 )
 
 func ComputeRating(r *util.Repository, newRating rating.Rating) util.Response {
@@ -152,7 +153,18 @@ func BuyNowHandler(r *util.Repository) gin.HandlerFunc {
 
 func GetProductDetails(r *util.Repository, PIDs []int) ([]models.Product, error) {
 	var productDetails []models.Product
-	err := r.DB.Model(&models.Product{}).Where("pid IN ?", PIDs).Find(productDetails).Error
+	err := r.DB.Model(&models.Product{}).Where("p_id IN ?", PIDs).Find(&productDetails).Error
+	if err != nil {
+		return nil, err
+	}
+	return productDetails, err
+}
+
+//Get all products in DB
+
+func GetAllProductsF(r *util.Repository) ([]models.Product, error) {
+	var productDetails []models.Product
+	err := r.DB.Find(&productDetails).Error
 	if err != nil {
 		return nil, err
 	}
@@ -182,6 +194,23 @@ func GetProductDetailsHandler(r *util.Repository) gin.HandlerFunc {
 	}
 }
 
+// Return all products in DB
+func GetAllProductsHandler(r *util.Repository) gin.HandlerFunc {
+	return func(c *gin.Context) {
+
+		productList, err := GetAllProductsF(r)
+
+		// Fetch product from the database
+		if err != nil {
+			log.Fatal("product not found:", err)
+			c.SecureJSON(http.StatusNotFound, gin.H{"message": "product not found"})
+			return
+		}
+
+		c.JSON(http.StatusOK, productList)
+	}
+}
+
 func RegisterRoutes(router *gin.Engine, r *util.Repository) *gin.RouterGroup {
 	// todo validate if request is coming from valid seller/user
 	v1 := router.Group(routePrefix)
@@ -192,6 +221,7 @@ func RegisterRoutes(router *gin.Engine, r *util.Repository) *gin.RouterGroup {
 		v1.DELETE(deleteRating, UpdateRatingHandler(r))
 		v1.POST(buyNow, BuyNowHandler(r))
 		v1.GET(getProductDetails, GetProductDetailsHandler(r))
+		v1.GET(getAllProducts, GetAllProductsHandler(r))
 	}
 	return v1
 }

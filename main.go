@@ -89,6 +89,7 @@ func migrateAllDB(db *gorm.DB) {
 	getCartDB(db)
 	getOrderDB(db)
 	getCategoryDB(db)
+	getProductDB(db)
 
 }
 

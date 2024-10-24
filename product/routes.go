@@ -1,15 +1,21 @@
 package product
 
 import (
+	"context"
+	"fmt"
 	"log"
+	"mime/multipart"
 	"net/http"
 	"strconv"
 
+	firebase "firebase.google.com/go"
 	"github.com/gin-gonic/gin"
+	firebaseOp "github.com/shopeeProject/shopee/firebase"
 	"github.com/shopeeProject/shopee/models"
 	order "github.com/shopeeProject/shopee/order"
 	rating "github.com/shopeeProject/shopee/rating"
 	util "github.com/shopeeProject/shopee/util"
+	"google.golang.org/api/option"
 )
 
 const (
@@ -21,7 +27,13 @@ const (
 	buyNow            = "/buy-now"
 	getProductDetails = "/get-product"
 	getAllProducts    = "/get-all-products"
+	insertProduct     = "/insert-product"
 )
+
+type FileJson struct {
+	Name     string                `form:"fileName" binding:"required"`
+	fileData *multipart.FileHeader `form:"file"`
+}
 
 func ComputeRating(r *util.Repository, newRating rating.Rating) util.Response {
 	condition := rating.Rating{
@@ -100,6 +112,44 @@ func UpdateRatingHandler(r *util.Repository) gin.HandlerFunc {
 		}
 
 		c.SecureJSON(http.StatusOK, "product rating updated")
+	}
+}
+
+var ctx = context.Background()
+
+func InsertProductHandler(r *util.Repository) gin.HandlerFunc {
+	return func(c *gin.Context) {
+
+		file, err := c.FormFile("file")
+		fileName := c.PostForm("fileName")
+		fmt.Println(fileName)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		// Initialize Firebase
+		app, err := firebase.NewApp(ctx, nil, option.WithCredentialsFile("C:\\Users\\KARTHIK SURINENI\\Desktop\\shopee\\firebase.json"))
+		if err != nil {
+			log.Fatalf("error initializing app: %v\n", err)
+		}
+
+		storageClient, err := app.Storage(ctx)
+		if err != nil {
+			log.Fatalf("error initializing storage: %v\n", err)
+		}
+		bucket, err := storageClient.Bucket("brave-theater-255512.appspot.com")
+		if err != nil {
+			log.Fatalf("error getting bucket: %v\n", err)
+		}
+		// Upload the file to Firebase Storage
+		response := firebaseOp.UploadFile(bucket, file, "abc")
+		if response.Success == false {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": response.Message})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"message": "File uploaded successfully", "data": response.Data})
+
 	}
 }
 
@@ -222,6 +272,7 @@ func RegisterRoutes(router *gin.Engine, r *util.Repository) *gin.RouterGroup {
 		v1.POST(buyNow, BuyNowHandler(r))
 		v1.GET(getProductDetails, GetProductDetailsHandler(r))
 		v1.GET(getAllProducts, GetAllProductsHandler(r))
+		v1.POST(insertProduct, InsertProductHandler(r))
 	}
 	return v1
 }

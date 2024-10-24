@@ -32,6 +32,7 @@ type Seller struct {
 	CategoryID   int    `json:"category"`
 	Image        string `json:"image"`
 	Status       string `json:"status"`
+	IsApproved   bool   `json:"isApproved"`
 }
 
 type productDetails struct {

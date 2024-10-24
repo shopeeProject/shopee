@@ -16,12 +16,26 @@ var refreshTokens = map[string]string{}
 
 type Claims struct {
 	Username string `json:"username"`
+	IsAdmin  string `json:"isAdmin"`
 	jwt.RegisteredClaims
 }
 
 func GenerateAccessToken(username string) (string, error) {
 	claims := Claims{
 		Username: username,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(15 * time.Minute)),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+		},
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString(secretKey)
+}
+
+func GenerateAdminAccessToken(username string, isAdmin string) (string, error) {
+	claims := Claims{
+		Username: username,
+		IsAdmin:  isAdmin,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(15 * time.Minute)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
@@ -48,7 +62,7 @@ func ValidateRefreshToken(refresh_token string, r *util.Repository) util.DataRes
 		return util.DataResponse{Success: false, Message: "Error while finding the refresh token" + err.Error()}
 	}
 	if len(refreshToken) == 0 {
-		return util.DataResponse{Success: false, Message: "Couldn't find the refresh token" + err.Error()}
+		return util.DataResponse{Success: false, Message: "Couldn't find the refresh token"}
 	}
 	return util.DataResponse{Success: true, Message: "Found the refresh Token", Data: map[string]string{"username": refreshToken[0].Email}}
 
@@ -102,11 +116,11 @@ func JwtMiddleware(tokenString string) util.DataResponse {
 	if err != nil {
 		return util.DataResponse{Success: false, Message: err.Error()}
 	}
-	if err != nil || !token.Valid {
+	if !token.Valid {
 
 		return util.DataResponse{Success: false, Message: "Invalid Token"}
 	}
-	m := map[string]string{"Username": claims.Username}
+	m := map[string]string{"Username": claims.Username, "isAdmin": claims.IsAdmin}
 
 	return util.DataResponse{Success: true, Message: "Token Authentication Successful", Data: m}
 }

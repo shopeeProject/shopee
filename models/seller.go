@@ -13,6 +13,7 @@ type Seller struct {
 	Description  string `json:"description"`
 	Image        string `json:"image"`
 	Status       string `json:"status"`
+	IsApproved   bool   `gorm:"default:false" json:"isApproved"`
 }
 
 func MigrateSeller(db *gorm.DB) error {

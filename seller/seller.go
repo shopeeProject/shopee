@@ -86,6 +86,65 @@ func validateSellerCredentials(r *util.Repository, sellerdetails models.Seller) 
 
 }
 
+type SellersListResponse struct {
+	util.Response
+	data []Seller
+}
+
+// todo
+func GetUnApprovedSellers(r *util.Repository) SellersListResponse {
+	sellerdetails := Seller{IsApproved: false}
+	sellerResponse := []Seller{}
+	err := r.DB.Where(sellerdetails).Find(&sellerResponse).Error
+	if err != nil {
+		return SellersListResponse{
+			Response: util.Response{Message: "Error while fetching details " + err.Error(), Success: false},
+			data:     []Seller{},
+		}
+	}
+	return SellersListResponse{
+		Response: util.Response{
+			Message: "Data fetched Successfully",
+			Success: true,
+		},
+		data: sellerResponse,
+	}
+}
+
+func GetSellers(r *util.Repository) SellersListResponse {
+	sellerResponse := []Seller{}
+	err := r.DB.Find(&sellerResponse).Error
+	if err != nil {
+		return SellersListResponse{
+			Response: util.Response{Message: "Error while fetching details " + err.Error(), Success: false},
+			data:     []Seller{},
+		}
+	}
+	return SellersListResponse{
+		Response: util.Response{
+			Message: "Data fetched Successfully",
+			Success: true,
+		},
+		data: sellerResponse,
+	}
+}
+
+// todo
+func ApproveSeller(r *util.Repository, sellerId int) util.Response {
+	sellerdetails := models.Seller{SID: sellerId}
+	err := r.DB.Where(sellerdetails).Update("isApproved", true).Error
+	if err != nil {
+		return util.Response{
+			Success: false,
+			Message: "Error while Approving Seller " + err.Error(),
+		}
+	}
+	return util.Response{
+		Success: true,
+		Message: "Seller approved Successfully",
+	}
+}
+
 func SellerLogin(r *util.Repository) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var sellerdetails = models.Seller{}

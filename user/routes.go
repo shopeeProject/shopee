@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/gin-gonic/gin"
+	firebaseOp "github.com/shopeeProject/shopee/firebase"
 	jwthandler "github.com/shopeeProject/shopee/jwt"
 	"github.com/shopeeProject/shopee/models"
 	util "github.com/shopeeProject/shopee/util"
@@ -190,9 +191,17 @@ func AuthoriseUser(r *util.Repository) gin.HandlerFunc {
 	}
 }
 
+func firebaseHandler() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		firebaseOp.FirebaseOp1(c)
+	}
+}
+
 func RegisterRoutes(router *gin.Engine, r *util.Repository) *gin.RouterGroup {
 	router.POST(createUser, UserSignUp(r))
 	router.POST(userLogin, UserLogin(r))
+	router.GET("/firebase", firebaseHandler())
+
 	userGroup := router.Group("/user")
 	userGroup.Use(AuthoriseUser(r))
 	{

@@ -100,7 +100,7 @@ func UserLogin(r *util.Repository) gin.HandlerFunc {
 		c.Bind(&userdetails)
 		credentialValidator := validateUserCredentials(r, userdetails)
 		if credentialValidator.isValid {
-			accessToken, err := jwthandler.GenerateAccessToken(userdetails.EmailAddress)
+			accessToken, err := jwthandler.GenerateAccessToken(userdetails.EmailAddress, "user")
 			if err != nil {
 				c.SecureJSON(http.StatusInternalServerError, &map[string]string{
 					"message": "Error while generating accessToken" + err.Error(),

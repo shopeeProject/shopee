@@ -7,25 +7,27 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/shopeeProject/shopee/category"
+	jwthandler "github.com/shopeeProject/shopee/jwt"
 	"github.com/shopeeProject/shopee/models"
 	util "github.com/shopeeProject/shopee/util"
 )
 
 // product and cart tables and handlers to be created
 const (
-	routePrefix   = "/seller"
-	addProduct    = "/add-product"
-	updateProduct = "/update-product"
-	updateStatus  = "/update-seller-status"
-	updateDetails = "/update-details"
-	createSeller  = "/create-seller"
-	sellerLogin   = "/seller-login"
+	routePrefix      = "/seller"
+	addProduct       = "/add-product"
+	updateProduct    = "/update-product"
+	updateStatus     = "/update-seller-status"
+	updateDetails    = "/update-details"
+	createSeller     = "/create-seller"
+	getSellerDetails = "/get-seller-details"
+	sellerLogin      = "/seller-login"
 )
 
 type Seller struct {
 	// SID          int   `json:"sid"`
 	Name         string `json:"name"`
-	EmailAddress string `json:"email"`
+	EmailAddress string `json:"emailAddress"`
 	Password     string `json:"password"`
 	Rating       int    `json:"rating"`
 	Description  string `json:"description"`
@@ -121,12 +123,78 @@ func updateDetailsHandler(r *util.Repository) gin.HandlerFunc {
 // todo
 func AuthoriseSeller(r *util.Repository) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		paramPairs := c.Request.URL.Query()
-		for key, values := range paramPairs {
-			fmt.Printf("key = %v, value(s) = %v\n", key, values)
+		// paramPairs := c.Request.URL.Query()
+
+		accessToken, ok := c.Request.Header["Authorization"]
+		if !ok {
+			returnString := map[string]interface{}{
+				"message": "Access token not found in the request",
+			}
+			c.SecureJSON(409, returnString)
+			c.Abort()
+			return
 		}
+		fmt.Println(accessToken)
+		tokenValidationResponse := jwthandler.JwtMiddleware(accessToken[0])
+		fmt.Println(tokenValidationResponse.Message)
+		if !tokenValidationResponse.Success || tokenValidationResponse.Data["Entity"] != "seller" {
+			returnString := map[string]interface{}{
+				"message": tokenValidationResponse.Message,
+			}
+			c.SecureJSON(409, returnString)
+			c.Abort()
+			return
+		}
+		c.Set("emailAddress", tokenValidationResponse.Data["Username"])
+
 		c.Next()
 	}
+}
+
+func getSellerDetailsHandler(r *util.Repository) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		//fetch user details from db and return
+		// usersList := []models.User{}
+		// r.DB.Find(&usersList)
+		var sellerdetails = Seller{}
+		c.Bind(&sellerdetails)
+		// fmt.Println(userdetails, c.Get("emailAddress"))
+		currentSeller := []Seller{}
+
+		email, ok := c.Get("emailAddress")
+		if !ok {
+			c.JSON(309, map[string]interface{}{
+				"message": "Couldn't find User",
+			})
+			return
+		}
+		str, ok := email.(string)
+		if !ok {
+			c.JSON(309, map[string]interface{}{
+				"message": "Couldn't find User",
+			})
+			return
+		}
+		condition := Seller{EmailAddress: str}
+		fmt.Println(condition)
+		r.DB.Limit(1).Find(&currentSeller, condition)
+
+		if len(currentSeller) == 0 {
+			c.JSON(309, map[string]interface{}{
+				"message": "Couldn't find Seller",
+			})
+			return
+		}
+		// delete(currentSeller[0],"Password")
+		currentSeller[0].Password = ""
+		m := map[string]interface{}{
+			"message": "Details Fetched",
+			"data":    currentSeller[0],
+		}
+
+		c.JSON(200, m)
+	}
+
 }
 
 func RegisterRoutes(router *gin.Engine, r *util.Repository) *gin.RouterGroup {
@@ -139,6 +207,7 @@ func RegisterRoutes(router *gin.Engine, r *util.Repository) *gin.RouterGroup {
 		v1.PATCH(updateProduct, updateProductHandler(r))
 		v1.PATCH(updateStatus, updateStatusHandler(r))
 		v1.PATCH(updateDetails, updateDetailsHandler(r))
+		v1.GET(getSellerDetails, getSellerDetailsHandler(r))
 	}
 	return v1
 }

@@ -39,7 +39,7 @@ func ValidateCategory(db *gorm.DB, category int) util.Response {
 }
 
 // Add Category Handler
-func addCategoryHandler(r *util.Repository) gin.HandlerFunc {
+func AddCategoryHandler(r *util.Repository) gin.HandlerFunc {
 
 	return func(c *gin.Context) {
 		var category Category
@@ -57,7 +57,7 @@ func addCategoryHandler(r *util.Repository) gin.HandlerFunc {
 }
 
 // Remove Category Handler
-func removeCategoryHandler(r *util.Repository) gin.HandlerFunc {
+func RemoveCategoryHandler(r *util.Repository) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id := c.Param("id")
 		if err := r.DB.Delete(&models.Category{}, id).Error; err != nil {
@@ -91,8 +91,8 @@ func getAllCategoriesHandler(r *util.Repository) gin.HandlerFunc {
 func RegisterRoutes(router *gin.Engine, r *util.Repository) {
 	v1 := router.Group(routePrefix)
 	{
-		v1.POST(addCategory, addCategoryHandler(r))
-		v1.DELETE(removeCategory, removeCategoryHandler(r))
+		v1.POST(addCategory, AddCategoryHandler(r))
+		v1.DELETE(removeCategory, RemoveCategoryHandler(r))
 		v1.GET(getAllCategories, getAllCategoriesHandler(r))
 	}
 }

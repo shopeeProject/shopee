@@ -106,7 +106,7 @@ func AdminLogin(r *util.Repository) gin.HandlerFunc {
 		c.Bind(&admindetails)
 		credentialValidator := validateAdminCredentials(r, admindetails)
 		if credentialValidator.isValid {
-			accessToken, err := jwthandler.GenerateAdminAccessToken(admindetails.EmailAddress, "true")
+			accessToken, err := jwthandler.GenerateAccessToken(admindetails.EmailAddress, "admin")
 			if err != nil {
 				c.SecureJSON(http.StatusInternalServerError, &map[string]string{
 					"message": "Error while generating accessToken" + err.Error(),

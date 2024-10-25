@@ -31,21 +31,12 @@ const (
 
 type User struct {
 	// UId           int
-	Name          string `form:"name"`
-	PhoneNumber   string `form:"phoneNumber"`
-	EmailAddress  string `form:"emailAddress"`
-	AccountStatus string `form:"accountStatus"`
-	Address       string `form:"address"`
-	Password      string `form:"password"`
-}
-
-type ExportUser struct {
-	// UId           int
-	Name          string `form:"name"`
-	PhoneNumber   string `form:"phoneNumber"`
-	EmailAddress  string `form:"emailAddress"`
-	AccountStatus string `form:"accountStatus"`
-	Address       string `form:"address"`
+	Name          string `form:"name" json:"name"`
+	PhoneNumber   string `form:"phoneNumber json:"phoneNumber"`
+	EmailAddress  string `form:"emailAddress" json:"emailAddress"`
+	AccountStatus string `form:"accountStatus" json:"accountStatus"`
+	Address       string `form:"address" json:"accountStatus"`
+	Password      string `form:"password" json:"password"`
 }
 
 func updateUserDetailsHandler(r *util.Repository) gin.HandlerFunc {
@@ -177,7 +168,7 @@ func AuthoriseUser(r *util.Repository) gin.HandlerFunc {
 		fmt.Println(accessToken)
 		tokenValidationResponse := jwthandler.JwtMiddleware(accessToken[0])
 		fmt.Println(tokenValidationResponse.Message)
-		if !tokenValidationResponse.Success {
+		if !tokenValidationResponse.Success || tokenValidationResponse.Data["Entity"] != "user" {
 			returnString := map[string]interface{}{
 				"message": tokenValidationResponse.Message,
 			}

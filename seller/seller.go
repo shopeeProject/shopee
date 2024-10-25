@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"net/http"
 
-	"golang.org/x/crypto/bcrypt"
-
 	"github.com/gin-gonic/gin"
+	jwthandler "github.com/shopeeProject/shopee/jwt"
 	"github.com/shopeeProject/shopee/models"
 	util "github.com/shopeeProject/shopee/util"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type validation struct {
@@ -48,7 +48,7 @@ func SellerSignUp(r *util.Repository) gin.HandlerFunc {
 		}
 
 		sellerDetails.Password = string(passwordHash)
-
+		fmt.Println(sellerDetails)
 		if ValidateEmail(r, sellerDetails.EmailAddress).isValid {
 
 			r.DB.Where(models.Seller{EmailAddress: sellerDetails.EmailAddress}).FirstOrCreate(&sellerDetails)
@@ -77,8 +77,12 @@ func validateSellerCredentials(r *util.Repository, sellerdetails models.Seller) 
 					return validation{true, "Password verified successfully"}
 				}
 				return validation{false, "Invalid Password"}
+			} else {
+				if len(sellerModel) > 1 {
+					return validation{false, "Multiple entries found with same Email"}
+				}
+				return validation{false, "Seller Not found"}
 			}
-			return validation{false, "Multiple entries found with same Email"}
 		}
 		return validation{false, "Error while validating user" + err.Error()}
 	}
@@ -91,15 +95,23 @@ type SellersListResponse struct {
 	data []Seller
 }
 
+func NullifyPassowrd(sellers []Seller) []Seller {
+	for i := 0; i < len(sellers); i++ {
+		sellers[i].Password = ""
+	}
+	return sellers
+}
+
 // todo
 func GetUnApprovedSellers(r *util.Repository) SellersListResponse {
 	sellerdetails := Seller{IsApproved: false}
 	sellerResponse := []Seller{}
 	err := r.DB.Where(sellerdetails).Find(&sellerResponse).Error
+	sellerResponse = NullifyPassowrd(sellerResponse)
 	if err != nil {
 		return SellersListResponse{
 			Response: util.Response{Message: "Error while fetching details " + err.Error(), Success: false},
-			data:     []Seller{},
+			data:     sellerResponse,
 		}
 	}
 	return SellersListResponse{
@@ -114,10 +126,11 @@ func GetUnApprovedSellers(r *util.Repository) SellersListResponse {
 func GetSellers(r *util.Repository) SellersListResponse {
 	sellerResponse := []Seller{}
 	err := r.DB.Find(&sellerResponse).Error
+	sellerResponse = NullifyPassowrd(sellerResponse)
 	if err != nil {
 		return SellersListResponse{
 			Response: util.Response{Message: "Error while fetching details " + err.Error(), Success: false},
-			data:     []Seller{},
+			data:     sellerResponse,
 		}
 	}
 	return SellersListResponse{
@@ -151,8 +164,22 @@ func SellerLogin(r *util.Repository) gin.HandlerFunc {
 		c.Bind(&sellerdetails)
 		credentialValidator := validateSellerCredentials(r, sellerdetails)
 		if credentialValidator.isValid {
+			accessToken, err := jwthandler.GenerateAccessToken(sellerdetails.EmailAddress, "seller")
+			if err != nil {
+				c.SecureJSON(http.StatusInternalServerError, &map[string]string{
+					"message": "Error while generating accessToken" + err.Error(),
+				})
+			}
+			refreshToken, err := jwthandler.GenerateRefreshToken(sellerdetails.EmailAddress)
+			if err != nil {
+				c.SecureJSON(http.StatusInternalServerError, &map[string]string{
+					"message": "Error while generating refresh token" + err.Error(),
+				})
+			}
 			c.SecureJSON(http.StatusOK, &map[string]string{
-				"message": "Seller Validated successfully",
+				"message":      "User Validated successfully",
+				"accessToken":  accessToken,
+				"refreshToken": refreshToken,
 			})
 			return
 		}

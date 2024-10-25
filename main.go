@@ -83,6 +83,13 @@ func getCategoryDB(db *gorm.DB) {
 
 }
 
+func getAdminDB(db *gorm.DB) {
+	err := models.MigrateAdmin(db)
+	if err != nil {
+		log.Fatal("could not migrate Admin db " + err.Error())
+	}
+}
+
 func migrateAllDB(db *gorm.DB) {
 	getUserDB(db)
 	getSellerDB(db)
@@ -90,6 +97,7 @@ func migrateAllDB(db *gorm.DB) {
 	getOrderDB(db)
 	getCategoryDB(db)
 	getProductDB(db)
+	getAdminDB(db)
 
 }
 

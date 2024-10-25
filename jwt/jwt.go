@@ -16,13 +16,14 @@ var refreshTokens = map[string]string{}
 
 type Claims struct {
 	Username string `json:"username"`
-	IsAdmin  string `json:"isAdmin"`
+	Entity   string `json:"entity"`
 	jwt.RegisteredClaims
 }
 
-func GenerateAccessToken(username string) (string, error) {
+func GenerateAccessToken(username string, entity string) (string, error) {
 	claims := Claims{
 		Username: username,
+		Entity:   entity,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(15 * time.Minute)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
@@ -32,18 +33,18 @@ func GenerateAccessToken(username string) (string, error) {
 	return token.SignedString(secretKey)
 }
 
-func GenerateAdminAccessToken(username string, isAdmin string) (string, error) {
-	claims := Claims{
-		Username: username,
-		IsAdmin:  isAdmin,
-		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(15 * time.Minute)),
-			IssuedAt:  jwt.NewNumericDate(time.Now()),
-		},
-	}
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString(secretKey)
-}
+// func GenerateAdminAccessToken(username string, isAdmin string) (string, error) {
+// 	claims := Claims{
+// 		Username: username,
+// 		IsAdmin:  isAdmin,
+// 		RegisteredClaims: jwt.RegisteredClaims{
+// 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(15 * time.Minute)),
+// 			IssuedAt:  jwt.NewNumericDate(time.Now()),
+// 		},
+// 	}
+// 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+// 	return token.SignedString(secretKey)
+// }
 
 func GenerateRefreshToken(username string) (string, error) {
 	claims := jwt.RegisteredClaims{
@@ -73,7 +74,7 @@ func Refresh(refresh_token string, r *util.Repository) util.DataResponse {
 	if !refreshTokenValidationResult.Success {
 		return util.DataResponse{Success: false, Message: refreshTokenValidationResult.Message}
 	}
-	newAccessToken, err := GenerateAccessToken(refreshTokenValidationResult.Data["username"])
+	newAccessToken, err := GenerateAccessToken(refreshTokenValidationResult.Data["username"], refreshTokenValidationResult.Data["entity"])
 	if err != nil {
 		return util.DataResponse{Success: false, Message: "Error while generating new token" + err.Error()}
 	}
@@ -90,12 +91,13 @@ func Refresh1(w http.ResponseWriter, r *http.Request) {
 	refreshToken := body["refresh_token"]
 
 	username, ok := refreshTokens[refreshToken]
+	entity, ok := refreshTokens["entity"]
 	if !ok {
 		http.Error(w, "Invalid refresh token", http.StatusUnauthorized)
 		return
 	}
 
-	newAccessToken, err := GenerateAccessToken(username)
+	newAccessToken, err := GenerateAccessToken(username, entity)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -120,7 +122,7 @@ func JwtMiddleware(tokenString string) util.DataResponse {
 
 		return util.DataResponse{Success: false, Message: "Invalid Token"}
 	}
-	m := map[string]string{"Username": claims.Username, "isAdmin": claims.IsAdmin}
+	m := map[string]string{"Username": claims.Username, "Entity": claims.Entity}
 
 	return util.DataResponse{Success: true, Message: "Token Authentication Successful", Data: m}
 }

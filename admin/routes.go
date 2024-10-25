@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/shopeeProject/shopee/category"
 	jwthandler "github.com/shopeeProject/shopee/jwt"
 	"github.com/shopeeProject/shopee/seller"
 	"github.com/shopeeProject/shopee/util"
@@ -38,7 +39,7 @@ func AuthoriseAdmin(r *util.Repository) gin.HandlerFunc {
 		fmt.Println(accessToken)
 		tokenValidationResponse := jwthandler.JwtMiddleware(accessToken[0])
 		fmt.Println(tokenValidationResponse.Message)
-		if !tokenValidationResponse.Success || tokenValidationResponse.Data["IsAdmin"] != "true" {
+		if !tokenValidationResponse.Success || tokenValidationResponse.Data["Entity"] != "admin" {
 			returnString := map[string]interface{}{
 				"message": tokenValidationResponse.Message,
 			}
@@ -101,6 +102,8 @@ func RegisterRoutes(router *gin.Engine, r *util.Repository) *gin.RouterGroup {
 		router.POST(createAdmin, AdminSignUp(r))
 		router.GET(getUnapprovedSellers, GetUnApprovedSellers(r))
 		router.GET(getSellers, GetSellers(r))
+		router.POST(addCategory, category.AddCategoryHandler(r))
+		router.DELETE(deleteCategory, category.RemoveCategoryHandler(r))
 	}
 	return v1
 }

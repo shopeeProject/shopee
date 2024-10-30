@@ -25,7 +25,7 @@ func returnFailResponse(err string) util.DataResponse {
 func UploadImageAndGetUrl(file *multipart.FileHeader, fileName string, userEmail string) util.DataResponse {
 	// Set up Firebase Admin SDK
 	ctx := context.Background()
-	app, err := firebase.NewApp(ctx, nil, option.WithCredentialsFile("./../firebase.json"))
+	app, err := firebase.NewApp(ctx, nil, option.WithCredentialsFile("C:\\Users\\KARTHIK SURINENI\\Desktop\\shopee\\firebase.json"))
 	if err != nil {
 		log.Fatalf("Failed to create Firebase app: %v", err)
 		return returnFailResponse(err.Error())

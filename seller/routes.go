@@ -4,11 +4,14 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/shopeeProject/shopee/category"
+	firebaseOp "github.com/shopeeProject/shopee/firebase"
 	jwthandler "github.com/shopeeProject/shopee/jwt"
 	"github.com/shopeeProject/shopee/models"
+	"github.com/shopeeProject/shopee/product"
 	util "github.com/shopeeProject/shopee/util"
 )
 
@@ -21,6 +24,7 @@ const (
 	updateDetails    = "/update-details"
 	createSeller     = "/create-seller"
 	getSellerDetails = "/get-seller-details"
+	getProducts      = "/get-products"
 	sellerLogin      = "/seller-login"
 )
 
@@ -37,41 +41,86 @@ type Seller struct {
 	IsApproved   bool   `json:"isApproved"`
 }
 
-type productDetails struct {
+type Product struct {
 	// PID          int
-	Name         string `json:"name"`
-	Price        string `json:"price"`
-	Availability bool   `json:"availability"`
-	Rating       string `json:"rating"`
-	CategoryID   int    `json:"category"`
-	Description  string `json:"description"`
-	SID          string `json:"sid"`
-	Image        string `json:"image"`
+	Name         string  `json:"name"`
+	Price        int     `json:"price"`
+	Availability bool    `json:"availability"`
+	Rating       float32 `json:"rating"`
+	CategoryID   int     `json:"category"`
+	Count        int     `json:"count"`
+	Description  string  `json:"description"`
+	SID          string  `json:"sid"`
+	Image        string  `json:"image"`
 }
 
 func addProductHandler(r *util.Repository) gin.HandlerFunc {
 	return func(c *gin.Context) {
 
-		req := productDetails{}
-		err := c.ShouldBindJSON(&req)
-
+		// err := c.ShouldBindJSON(&req)
+		file, err := c.FormFile("image")
 		if err != nil {
-			c.SecureJSON(http.StatusBadRequest, err)
+			c.JSON(309, map[string]interface{}{
+				"message": "Error while parsing image " + err.Error(),
+			})
+			return
 		}
+		name := c.PostForm("name")
+		price, err := strconv.Atoi(c.PostForm("price"))
+		count, err := strconv.Atoi(c.PostForm("count"))
+		description := c.PostForm("description")
+		email, ok := c.Get("emailAddress")
+		categoryId := c.PostForm("category")
+		categoryIdInt, err := strconv.Atoi(categoryId)
+		if err != nil {
+			c.JSON(409, gin.H{
+				"message": "Error while parsing form " + err.Error(),
+			})
+			return
+		}
+		if !ok {
+			c.JSON(409, gin.H{
+				"message": "User not Found/ Authenticated",
+			})
+			return
+		}
+		str, ok := email.(string)
+		if !ok {
+			c.JSON(309, map[string]interface{}{
+				"message": "Couldn't find Seller",
+			})
+			return
+		}
+		fmt.Println(file.Filename, name, price, count, description)
 
-		validationResponse := category.ValidateCategory(r.DB, req.CategoryID)
+		validationResponse := category.ValidateCategory(r.DB, categoryIdInt)
 		if validationResponse.Success == false {
 			c.SecureJSON(http.StatusBadRequest, gin.H{
 				"message": validationResponse.Message,
 			})
+			return
 		}
-
+		imageStringResp := firebaseOp.UploadImageAndGetUrl(file, file.Filename+name, str)
+		fmt.Println(imageStringResp.Data)
+		req := Product{Name: name, Price: price, Count: count, Image: imageStringResp.Data["downloadURL"], Description: description}
+		products := []models.Product{}
+		result := r.DB.Where(Product{SID: str, Name: name}).Find(&products)
+		if result.Error != nil || len(products) > 0 {
+			c.JSON(400, gin.H{
+				"Message": "Error while fetching for validating inputs " + result.Error.Error(),
+			})
+			return
+		}
+		// .FirstOrCreate(&req)
+		err = r.DB.Create(req).Error
 		//if valid category add product to product table
-		if err := r.DB.Create(&req); err != nil {
-			log.Fatal("failed to update seller:", err)
+		if err != nil {
+			log.Fatal("Failed to add product ", err.Error())
 		}
 
-		c.SecureJSON(http.StatusOK, "product added")
+		c.SecureJSON(http.StatusOK, gin.H{
+			"Message": "product added ",
+		})
 	}
 }
 
@@ -197,6 +246,37 @@ func getSellerDetailsHandler(r *util.Repository) gin.HandlerFunc {
 
 }
 
+func getProductsHandler(r *util.Repository) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		email, ok := c.Get("emailAddress")
+		if !ok {
+			c.JSON(309, map[string]interface{}{
+				"message": "Couldn't find User",
+			})
+			return
+		}
+		emailstr, ok := email.(string)
+		if !ok {
+			c.JSON(309, map[string]interface{}{
+				"message": "Couldn't find User",
+			})
+			return
+		}
+		data, err := product.GetAllSellerProductsF(r, emailstr)
+		if err != nil {
+			c.JSON(309, map[string]interface{}{
+				"message": "Error while fetching products " + err.Error(),
+			})
+			return
+		}
+		c.JSON(200, map[string]interface{}{
+			"message": "Data fetched successfully",
+			"data":    data,
+		})
+		return
+	}
+}
+
 func RegisterRoutes(router *gin.Engine, r *util.Repository) *gin.RouterGroup {
 	router.POST(createSeller, SellerSignUp(r))
 	router.POST(sellerLogin, SellerLogin(r))
@@ -208,6 +288,7 @@ func RegisterRoutes(router *gin.Engine, r *util.Repository) *gin.RouterGroup {
 		v1.PATCH(updateStatus, updateStatusHandler(r))
 		v1.PATCH(updateDetails, updateDetailsHandler(r))
 		v1.GET(getSellerDetails, getSellerDetailsHandler(r))
+		v1.GET(getProducts, getProductsHandler(r))
 	}
 	return v1
 }

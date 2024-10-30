@@ -18,6 +18,19 @@ import (
 	"google.golang.org/api/option"
 )
 
+type Product struct {
+	// PID          int
+	Name         string  `json:"name"`
+	Price        int     `json:"price"`
+	Availability bool    `json:"availability"`
+	Rating       float32 `json:"rating"`
+	CategoryID   int     `json:"category"`
+	Count        int     `json:"count"`
+	Description  string  `json:"description"`
+	SID          string  `json:"sid"`
+	Image        string  `json:"image"`
+}
+
 const (
 	routePrefix       = "/product"
 	updateCount       = "/update-count"
@@ -143,7 +156,7 @@ func InsertProductHandler(r *util.Repository) gin.HandlerFunc {
 		}
 		// Upload the file to Firebase Storage
 		response := firebaseOp.UploadFile(bucket, file, "abc")
-		if response.Success == false {
+		if !response.Success {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": response.Message})
 			return
 		}
@@ -215,6 +228,17 @@ func GetProductDetails(r *util.Repository, PIDs []int) ([]models.Product, error)
 func GetAllProductsF(r *util.Repository) ([]models.Product, error) {
 	var productDetails []models.Product
 	err := r.DB.Find(&productDetails).Error
+	if err != nil {
+		return nil, err
+	}
+	return productDetails, err
+}
+
+//Get all products of a seller in DB
+
+func GetAllSellerProductsF(r *util.Repository, sid string) ([]models.Product, error) {
+	var productDetails []models.Product
+	err := r.DB.Find(&productDetails, Product{SID: sid}).Error
 	if err != nil {
 		return nil, err
 	}

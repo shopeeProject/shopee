@@ -32,7 +32,7 @@ const (
 type User struct {
 	// UId           int
 	Name          string `form:"name" json:"name"`
-	PhoneNumber   string `form:"phoneNumber json:"phoneNumber"`
+	PhoneNumber   string `form:"phoneNumber" json:"phoneNumber"`
 	EmailAddress  string `form:"emailAddress" json:"emailAddress"`
 	AccountStatus string `form:"accountStatus" json:"accountStatus"`
 	Address       string `form:"address" json:"accountStatus"`

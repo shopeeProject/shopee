@@ -89,10 +89,11 @@ func getAllCategoriesHandler(r *util.Repository) gin.HandlerFunc {
 }
 
 func RegisterRoutes(router *gin.Engine, r *util.Repository) {
+	router.GET(getAllCategories, getAllCategoriesHandler(r))
 	v1 := router.Group(routePrefix)
 	{
 		v1.POST(addCategory, AddCategoryHandler(r))
 		v1.DELETE(removeCategory, RemoveCategoryHandler(r))
-		v1.GET(getAllCategories, getAllCategoriesHandler(r))
+
 	}
 }

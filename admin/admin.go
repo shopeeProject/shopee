@@ -112,10 +112,16 @@ func AdminLogin(r *util.Repository) gin.HandlerFunc {
 					"message": "Error while generating accessToken" + err.Error(),
 				})
 			}
-			refreshToken, err := jwthandler.GenerateRefreshToken(admindetails.EmailAddress)
+			refreshToken, err := jwthandler.GenerateRefreshToken(admindetails.EmailAddress, "admin")
 			if err != nil {
 				c.SecureJSON(http.StatusInternalServerError, &map[string]string{
 					"message": "Error while generating refresh token" + err.Error(),
+				})
+			}
+			InsertResponse := jwthandler.InsertRefreshTokenToDB(r, refreshToken, admindetails.EmailAddress, "admin")
+			if !InsertResponse.Success {
+				c.SecureJSON(http.StatusInternalServerError, &map[string]string{
+					"message": InsertResponse.Message,
 				})
 			}
 			c.SecureJSON(http.StatusOK, &map[string]string{

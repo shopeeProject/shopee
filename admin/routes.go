@@ -39,7 +39,16 @@ func AuthoriseAdmin(r *util.Repository) gin.HandlerFunc {
 		fmt.Println(accessToken)
 		tokenValidationResponse := jwthandler.JwtMiddleware(accessToken[0])
 		fmt.Println(tokenValidationResponse.Message)
-		if !tokenValidationResponse.Success || tokenValidationResponse.Data["Entity"] != "admin" {
+		if !tokenValidationResponse.Success {
+			returnString := map[string]interface{}{
+				"message": tokenValidationResponse.Message,
+			}
+			c.SecureJSON(401, returnString)
+			c.Abort()
+			return
+		}
+
+		if tokenValidationResponse.Data["Entity"] != "admin" {
 			returnString := map[string]interface{}{
 				"message": tokenValidationResponse.Message,
 			}

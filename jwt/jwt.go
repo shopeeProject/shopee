@@ -1,7 +1,6 @@
 package jwthandler
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"time"
@@ -18,6 +17,11 @@ type Claims struct {
 	Username string `json:"username"`
 	Entity   string `json:"entity"`
 	jwt.RegisteredClaims
+}
+
+type Token struct {
+	username string
+	entity   string
 }
 
 func GenerateAccessToken(username string, entity string) (string, error) {
@@ -46,26 +50,53 @@ func GenerateAccessToken(username string, entity string) (string, error) {
 // 	return token.SignedString(secretKey)
 // }
 
-func GenerateRefreshToken(username string) (string, error) {
-	claims := jwt.RegisteredClaims{
-		Subject:   username,
-		ExpiresAt: jwt.NewNumericDate(time.Now().Add(7 * 24 * time.Hour)), // 1 week
+func InsertRefreshTokenToDB(r *util.Repository, refreshToken string, username string, entity string) util.Response {
+	CurrentToken := models.Token{RefreshToken: refreshToken, Email: username, Entity: entity}
+	err := r.DB.Create(CurrentToken).Error
+	if err != nil {
+		return util.Response{
+			Success: false,
+			Message: "Error while Uploading token " + err.Error(),
+		}
 	}
+	return util.Response{
+		Success: true,
+		Message: "Token upload successful",
+	}
+}
+
+func GenerateRefreshToken(username string, entity string) (string, error) {
+	claims := Claims{Username: username, Entity: entity, RegisteredClaims: jwt.RegisteredClaims{
+		ExpiresAt: jwt.NewNumericDate(time.Now().Add(7 * 24 * time.Hour)), // 1 week
+	}}
+
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+
 	return token.SignedString(secretKey)
 }
 
 func ValidateRefreshToken(refresh_token string, r *util.Repository) util.DataResponse {
 	refreshToken := []models.Token{}
+	claims := &Claims{}
 	condition := models.Token{RefreshToken: refresh_token}
-	err := r.DB.Where(condition).Find(&refreshToken).Error
+	token, err := jwt.ParseWithClaims(refresh_token, claims, func(token *jwt.Token) (interface{}, error) {
+		return secretKey, nil
+	})
+	if err != nil {
+		return util.DataResponse{Success: false, Message: "Error while validating the refresh token" + err.Error()}
+
+	}
+	if !token.Valid {
+		return util.DataResponse{Success: false, Message: "Found an invalid token "}
+	}
+	err = r.DB.Model(&Token{}).Where(condition).Find(&refreshToken).Error
 	if err != nil {
 		return util.DataResponse{Success: false, Message: "Error while finding the refresh token" + err.Error()}
 	}
 	if len(refreshToken) == 0 {
 		return util.DataResponse{Success: false, Message: "Couldn't find the refresh token"}
 	}
-	return util.DataResponse{Success: true, Message: "Found the refresh Token", Data: map[string]string{"username": refreshToken[0].Email}}
+	return util.DataResponse{Success: true, Message: "Found the refresh Token", Data: map[string]string{"username": refreshToken[0].Email, "entity": refreshToken[0].Entity}}
 
 }
 
@@ -81,33 +112,33 @@ func Refresh(refresh_token string, r *util.Repository) util.DataResponse {
 	return util.DataResponse{Success: true, Message: "New Token Generated successfully", Data: map[string]string{"accessToken": newAccessToken}}
 }
 
-func Refresh1(w http.ResponseWriter, r *http.Request) {
-	var body map[string]string
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
+// func Refresh1(w http.ResponseWriter, r *http.Request) {
+// 	var body map[string]string
+// 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+// 		http.Error(w, err.Error(), http.StatusBadRequest)
+// 		return
+// 	}
 
-	refreshToken := body["refresh_token"]
+// 	refreshToken := body["refresh_token"]
 
-	username, ok := refreshTokens[refreshToken]
-	entity, ok := refreshTokens["entity"]
-	if !ok {
-		http.Error(w, "Invalid refresh token", http.StatusUnauthorized)
-		return
-	}
+// 	username, ok := refreshTokens[refreshToken]
+// 	entity, ok := refreshTokens["entity"]
+// 	if !ok {
+// 		http.Error(w, "Invalid refresh token", http.StatusUnauthorized)
+// 		return
+// 	}
 
-	newAccessToken, err := GenerateAccessToken(username, entity)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
+// 	newAccessToken, err := GenerateAccessToken(username, entity)
+// 	if err != nil {
+// 		http.Error(w, err.Error(), http.StatusInternalServerError)
+// 		return
+// 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
-		"access_token": newAccessToken,
-	})
-}
+// 	w.Header().Set("Content-Type", "application/json")
+// 	json.NewEncoder(w).Encode(map[string]string{
+// 		"access_token": newAccessToken,
+// 	})
+// }
 
 func JwtMiddleware(tokenString string) util.DataResponse {
 	claims := &Claims{}

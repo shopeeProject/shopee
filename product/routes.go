@@ -227,7 +227,7 @@ func GetProductDetails(r *util.Repository, PIDs []int) ([]models.Product, error)
 
 func GetAllProductsF(r *util.Repository) ([]models.Product, error) {
 	var productDetails []models.Product
-	err := r.DB.Find(&productDetails).Error
+	err := r.DB.Find(&productDetails, Product{Availability: true}).Limit(10).Error
 	if err != nil {
 		return nil, err
 	}

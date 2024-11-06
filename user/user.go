@@ -106,10 +106,16 @@ func UserLogin(r *util.Repository) gin.HandlerFunc {
 					"message": "Error while generating accessToken" + err.Error(),
 				})
 			}
-			refreshToken, err := jwthandler.GenerateRefreshToken(userdetails.EmailAddress)
+			refreshToken, err := jwthandler.GenerateRefreshToken(userdetails.EmailAddress, "user")
 			if err != nil {
 				c.SecureJSON(http.StatusInternalServerError, &map[string]string{
 					"message": "Error while generating refresh token" + err.Error(),
+				})
+			}
+			InsertResponse := jwthandler.InsertRefreshTokenToDB(r, refreshToken, userdetails.EmailAddress, "user")
+			if !InsertResponse.Success {
+				c.SecureJSON(http.StatusInternalServerError, &map[string]string{
+					"message": InsertResponse.Message,
 				})
 			}
 			c.SecureJSON(http.StatusOK, &map[string]string{
